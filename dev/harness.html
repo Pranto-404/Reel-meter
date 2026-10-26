@@ -1,0 +1,116 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reel Meter harness</title>
+<!-- Dev only: runs the popup or dashboard in a normal page with a fake `chrome` API and seeded data.
+     Open /dev/harness.html?page=popup  or  ?page=dashboard[&empty=1]  -->
+<script src="../src/core.js"></script>
+<script>
+(async () => {
+  const C = ReelCore;
+  const q = new URLSearchParams(location.search);
+  const page = q.get('page') || 'dashboard';
+
+  // seeded, repeatable data
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const stats = {};
+  if (!q.get('empty')) {
+    const now = new Date();
+    for (let back = 100; back >= 0; back--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back, 12);
+      const weekend = [0, 6].includes(d.getDay());
+      const sessions = Math.floor(rnd() * 4) + (weekend ? 2 : 1);
+      for (let s = 0; s < sessions; s++) {
+        const hour = rnd() < 0.7 ? 20 + Math.floor(rnd() * 4) : 7 + Math.floor(rnd() * 14);
+        const at = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 15);
+        if (back === 0 && at > now) continue;
+        const p = ['youtube', 'youtube', 'instagram', 'tiktok', 'instagram', 'facebook'][Math.floor(rnd() * 6)];
+        const reels = 5 + Math.floor(rnd() * 30);
+        C.recordActivity(stats, at, { platform: p, reels, seconds: reels * (14 + Math.floor(rnd() * 20)) });
+      }
+    }
+  }
+  // extra scenarios: ?busy=1 adds activity to today, ?big=1 makes huge counts, ?snooze=15 pauses tracking for 15 min,
+  // ?mins=60 sets a minute limit, ?limit=40 sets the reel limit, ?over=1 puts today over the limit
+  if (q.get('busy') || q.get('big') || q.get('over')) {
+    const t = new Date();
+    const n = q.get('big') ? 5200 : q.get('over') ? 112 : 47;
+    ['youtube', 'instagram', 'tiktok', 'facebook'].forEach((p, i) => {
+      const at = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 8 + i * 3, 10);
+      C.recordActivity(stats, at, { platform: p, reels: Math.round(n * [0.45, 0.3, 0.2, 0.05][i]), seconds: Math.round(n * [0.45, 0.3, 0.2, 0.05][i] * 21) });
+    });
+  }
+  const store = {
+    stats,
+    meta: { installedOn: C.addDays(C.dayKey(new Date()), -100) },
+    settings: {
+      dailyReelLimit: q.get('nolimit') ? 0 : Number(q.get('limit') || 90),
+      dailyMinuteLimit: Number(q.get('mins') || 0),
+      snoozeUntil: q.get('snooze') ? Date.now() + Number(q.get('snooze')) * 60000 : 0,
+    },
+  };
+  // block scenarios: ?block=on|break|focus|lock  (apps, schedules and running state), ?level=gentle|balanced|strict, ?sched=1 (two schedules only)
+  const bk = q.get('block');
+  const t0 = Date.now();
+  const MIN = 60000;
+  if (bk || q.get('sched') || q.get('level')) {
+    const blk = { level: q.get('level') || 'balanced', apps: { youtube: 'count', instagram: 'count', tiktok: 'count', facebook: 'count' }, hardLimit: false, shortsAsVideos: false, schedules: [] };
+    const st = C.emptyBlockState();
+    const night = { id: 'night', on: true, days: [0, 1, 2, 3, 4, 5, 6], start: '22:00', end: '07:00' };
+    const work = { id: 'work', on: true, days: [0, 1, 2, 3, 4], start: '09:00', end: '17:00' };
+    if (q.get('sched') || bk === 'on' || bk === 'lock' || bk === 'break') blk.schedules = [night, work];
+    if (bk === 'on' || bk === 'lock' || bk === 'break') { blk.apps.youtube = 'block'; blk.apps.tiktok = 'block'; }
+    if (bk === 'break') { st.breaks.youtube = t0 + 4 * MIN + 20000; st.unlocks.youtube = [t0 - 5 * MIN]; st.unlocks.facebook = [t0 - 50 * MIN, t0 - 20 * MIN]; }
+    if (bk === 'focus') { st.focus.instagram = t0 + 42 * MIN; st.focus.facebook = t0 + 42 * MIN; }
+    if (bk === 'lock') { st.lockUntil.youtube = t0 + 5 * 60 * MIN + 58 * MIN; st.unlocks.instagram = [t0 - 50 * MIN, t0 - 20 * MIN]; blk.apps.instagram = 'block'; }
+    store.settings.block = blk;
+    store.blockState = st;
+  }
+  const realManifest = await (await fetch('../manifest.json')).json(); // the page shows the real version and permissions
+  const listeners = [];
+  const area = {
+    async get(keys) {
+      const list = keys == null ? Object.keys(store) : [].concat(keys);
+      const out = {};
+      list.forEach((k) => { if (k in store) out[k] = JSON.parse(JSON.stringify(store[k])); });
+      return out;
+    },
+    async set(obj) {
+      const changes = {};
+      for (const [k, v] of Object.entries(obj)) { changes[k] = { newValue: v, oldValue: store[k] }; store[k] = v; }
+      listeners.forEach((l) => l(changes, 'local'));
+    },
+    async remove(keys) { [].concat(keys).forEach((k) => delete store[k]); listeners.forEach((l) => l({}, 'local')); },
+  };
+  const fakeChrome = {
+    storage: { local: area, session: area, onChanged: { addListener: (l) => listeners.push(l) } },
+    runtime: {
+      id: 'harness',
+      getManifest: () => realManifest,
+      openOptionsPage: () => console.log('openOptionsPage'),
+      // the real background worker owns the focus timers; here a focus message just starts them in the fake storage
+      sendMessage(msg, cb) {
+        if (msg && msg.type === 'focus') {
+          store.blockState = C.applyFocus(C.normalizeBlockState(store.blockState), msg.platforms, msg.minutes, Date.now());
+          listeners.forEach((l) => l({ blockState: { newValue: store.blockState } }, 'local'));
+          if (cb) setTimeout(() => cb({ ok: true, state: store.blockState }), 0);
+        } else if (cb) setTimeout(() => cb({ ok: false }), 0);
+      },
+    },
+  };
+  Object.defineProperty(window, 'chrome', { value: fakeChrome, configurable: true, writable: true });
+  window.__store = store;
+
+  const html = await (await fetch('../src/ui/' + page + '.html')).text();
+  // the page runs under the REAL extension security policy (from manifest.json); anything it blocks is recorded
+  window.__csp = [];
+  window.__errors = [];
+  window.addEventListener('securitypolicyviolation', (e) => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI), true);
+  window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
+  window.addEventListener('unhandledrejection', (e) => window.__errors.push('rejection: ' + e.reason));
+  const csp = realManifest.content_security_policy.extension_pages;
+  document.open();
+  document.write(html.replace('<head>', '<head><meta http-equiv="Content-Security-Policy" content="' + csp + '"><base href="../src/ui/">'));
+  document.close();
+})();
+</script>

@@ -1,0 +1,953 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reel Meter content-script harness</title>
+<!-- Dev only. Runs the REAL content.js and background.js together in a normal page, with a fake chrome API,
+     a fake location (so it believes it is on youtube.com / tiktok.com) and a compressed clock, then checks
+     the end-to-end behaviour: counting, timing, idle, pause, nudges, limit overlay, snooze.
+     Open /dev/content-harness.html and read the PASS/FAIL list. -->
+<style>
+  body { font: 13px/1.4 system-ui, sans-serif; margin: 0; padding: 12px; background: #f4f4f2; color: #111; }
+  video { position: fixed; right: 24px; top: 50%; width: 180px; height: 320px; transform: translateY(-50%); background: #222; }
+  pre { margin: 0; width: min(640px, calc(100vw - 260px)); white-space: pre-wrap; }
+  .pass { color: #006300; } .fail { color: #c00; font-weight: 700; }
+</style>
+<pre id="log">running...</pre>
+<script src="../src/core.js"></script>
+<script>
+(async () => {
+  const C = ReelCore;
+  const logEl = document.getElementById('log');
+  if (new URLSearchParams(location.search).get('shot')) { // clean look for store screenshots: a plain "reel" and no log
+    const st = document.createElement('style');
+    st.textContent = 'body{background:#0f0f10}pre{display:none}video{left:50%;right:auto;top:50%;width:380px;height:676px;transform:translate(-50%,-50%);border-radius:18px}';
+    document.head.appendChild(st);
+  }
+  const lines = [];
+  const out = (cls, text) => { lines.push('<span class="' + cls + '">' + text.replace(/</g, '&lt;') + '</span>'); logEl.innerHTML = lines.join('\n'); };
+  let failures = 0;
+  const check = (name, ok, detail) => { if (!ok) failures++; out(ok ? 'pass' : 'fail', (ok ? 'PASS ' : 'FAIL ') + name + (detail !== undefined ? '  [' + detail + ']' : '')); };
+
+  // ---- fake clock + scheduler (content.js and background.js both get this Date) ----
+  const RealDate = Date;
+  let fakeNow = new RealDate(2026, 9, 24, 21, 0, 0).getTime();
+  class FDate extends RealDate {
+    constructor(...a) { if (a.length) super(...a); else super(fakeNow); }
+    static now() { return fakeNow; }
+  }
+  const timers = [];
+  let tid = 1;
+  const fakeSetInterval = (fn, ms) => { const id = tid++; timers.push({ id, fn, ms, due: fakeNow + ms }); return id; };
+  const fakeClearInterval = (id) => { const i = timers.findIndex((t) => t.id === id); if (i >= 0) timers.splice(i, 1); };
+  const nap = () => new Promise((r) => setTimeout(r, 0));
+  async function advance(seconds, opts = {}) {
+    const end = fakeNow + seconds * 1000;
+    let n = 0;
+    while (fakeNow < end) {
+      fakeNow += 250;
+      if (opts.touch !== false && ++n % 4 === 0) window.dispatchEvent(new Event('pointermove'));
+      for (const t of [...timers]) if (t.due <= fakeNow) { t.due += t.ms; t.fn(); }
+      await nap();
+    }
+    await nap(); await nap();
+  }
+
+  // ---- closed shadow roots are opened so the harness can look inside ----
+  const roots = [];
+  const origAttach = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = function (init) { const r = origAttach.call(this, Object.assign({}, init, { mode: 'open' })); roots.push(r); return r; };
+  const liveRoots = () => roots.filter((r) => r.host && r.host.isConnected); // roots of islands that were removed are ignored
+  const shadowText = () => liveRoots().flatMap((r) => [...r.querySelectorAll('.isl, .toast, .pause')].map((e) => e.textContent.replace(/\s+/g, ' '))).join(' | ');
+  const shadowHas = (sel) => liveRoots().some((r) => r.querySelector(sel));
+  const errors = []; // anything the page scripts throw while the checks run
+  window.addEventListener('error', (e) => errors.push(String(e.message)));
+  window.addEventListener('unhandledrejection', (e) => errors.push('rejection: ' + String(e.reason)));
+
+  // ---- fake chrome ----
+  const storageListeners = [];
+  const area = (notify) => {
+    const data = {};
+    return {
+      data,
+      async get(keys) {
+        const list = keys == null ? Object.keys(data) : [].concat(keys);
+        const o = {};
+        list.forEach((k) => { if (k in data) o[k] = JSON.parse(JSON.stringify(data[k])); });
+        return o;
+      },
+      async set(obj) {
+        const changes = {};
+        for (const [k, v] of Object.entries(obj)) { changes[k] = { newValue: JSON.parse(JSON.stringify(v)), oldValue: data[k] }; data[k] = JSON.parse(JSON.stringify(v)); }
+        if (notify) storageListeners.forEach((l) => l(changes, 'local'));
+      },
+      async remove(k) { [].concat(k).forEach((x) => delete data[x]); },
+    };
+  };
+  const local = area(true);
+  const session = area(false);
+  const msgListeners = [];
+  const badge = { text: '' };
+  const chrome = {
+    storage: { local, session, onChanged: { addListener: (l) => storageListeners.push(l) } },
+    runtime: {
+      id: 'harness', lastError: undefined, getURL: (p) => 'chrome-extension://harness/' + p,
+      onMessage: { addListener: (l) => msgListeners.push(l) },
+      onInstalled: { addListener() {} },
+      sendMessage(msg, cb) {
+        const sender = { id: 'harness', url: 'https://' + loc.hostname + '/', tab: { id: 1, url: 'https://' + loc.hostname + '/' } }; // what the browser tells the worker about a content script
+        const keep = msgListeners[0](msg, sender, (r) => setTimeout(() => cb && cb(r), 0));
+        if (!keep && cb) cb(undefined);
+      },
+    },
+    action: { setBadgeText: async ({ text }) => { badge.text = text; }, setBadgeBackgroundColor: async () => {}, setBadgeTextColor: async () => {} },
+    alarms: { create() {}, get: async () => ({}), onAlarm: { addListener() {} } },
+    tabs: { create() {} },
+  };
+
+  const loc = {
+    hostname: 'www.youtube.com', origin: 'https://www.youtube.com', pathname: '/shorts/start', assigned: [], replaced: [],
+    assign: (u) => { loc.assigned.push(u); out('pass', 'location.assign -> ' + u); },
+    replace: (u) => { loc.replaced.push(u); },
+  };
+  const load = async (file) => (await fetch('../src/' + file)).text();
+  const run = (code) => new Function('location', 'chrome', 'Date', 'setInterval', 'clearInterval', code)(loc, chrome, FDate, fakeSetInterval, fakeClearInterval);
+
+  // ---- a real, playing <video> ----
+  const realSetInterval = setInterval;
+  function makeVideo() {
+    const c = document.createElement('canvas');
+    c.width = 180; c.height = 320;
+    const ctx = c.getContext('2d');
+    let n = 0;
+    realSetInterval(() => { // an abstract, brand-free "reel": a soft moving gradient with a few circles
+      const h = (n++ * 3) % 360;
+      const g = ctx.createLinearGradient(0, 0, 180, 320);
+      g.addColorStop(0, 'hsl(' + h + ',70%,50%)');
+      g.addColorStop(1, 'hsl(' + ((h + 70) % 360) + ',70%,35%)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 180, 320);
+      ctx.fillStyle = 'rgba(255,255,255,.14)';
+      [[50, 220, 46], [130, 150, 30], [90, 280, 22]].forEach(([x, y, r], i) => { ctx.beginPath(); ctx.arc(x, y - ((n + i * 9) % 30), r, 0, 7); ctx.fill(); });
+    }, 100);
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.srcObject = c.captureStream(10);
+    document.body.appendChild(v);
+    v.play().catch(() => {});
+    return v;
+  }
+  let video = makeVideo();
+  await new Promise((r) => setTimeout(r, 800));
+  check('harness: video is playing and ready', !video.paused && video.readyState >= 2, 'paused=' + video.paused + ' readyState=' + video.readyState);
+  check('harness: tab counts as visible', document.visibilityState === 'visible', document.visibilityState);
+
+  const stats = async () => (await local.get('stats')).stats || {};
+  const todayDay = async () => C.getDay(await stats(), C.dayKey(new FDate()));
+  const setSettings = async (patch) => { await local.set({ settings: Object.assign(C.normalizeSettings((await local.get('settings')).settings), patch) }); await nap(); };
+
+  // A browser that still has version 1.0.0's saved drag position: it must be ignored and cleaned up.
+  await local.set({ settings: { streakNudge: 25, counterPos: { x: 0.02, y: 0.97 } } });
+  run(await load('background.js'));
+  run(await load('content.js'));
+  await advance(2);
+  check('A: an old saved dragged position is removed from storage on start', !('counterPos' in ((await local.get('settings')).settings || {})), JSON.stringify((await local.get('settings')).settings));
+  check('A: ...and ignored: the island is at the top of the reel, not in the old corner', (() => { const p = roots.map((r) => r.querySelector('.isl')).find(Boolean); const b = p.getBoundingClientRect(); const v = video.getBoundingClientRect(); return Math.abs(b.left + b.width / 2 - (v.left + v.width / 2)) <= 12 && b.top < v.top + 30; })(), '');
+
+  // ---- A. YouTube Shorts: 60 reels, 4 seconds each ----
+  let sawStreakToast = false;
+  for (let i = 0; i < 60; i++) { loc.pathname = '/shorts/reel' + i; await advance(4); if (/reels in a row/.test(shadowText())) sawStreakToast = true; }
+  let d = await todayDay();
+  check('A: about 60 reels counted for 60 four-second reels', d.r >= 58 && d.r <= 60, d.r);
+  check('A: about 4 minutes timed', d.s >= 235 && d.s <= 250, d.s);
+  check('A: all attributed to YouTube, and to the 21:00 hour', d.p.youtube && d.p.youtube.r === d.r && d.h[21] >= 235, JSON.stringify(d.p) + ' h21=' + d.h[21]);
+  check('A: live counter shows the totals', /\d+\s*reels?.*\d+m/.test(shadowText()), shadowText().slice(0, 80));
+  check('A: toolbar badge shows the count', badge.text === String(d.r), badge.text);
+  const pillEl = roots.map((r) => r.querySelector('.isl')).find(Boolean);
+  for (let i = 0; i < 30 && pillEl.classList.contains('noting'); i++) { await advance(1); await new Promise((r) => setTimeout(r, 400)); } // wait for the streak reminder to fold away
+  await advance(2); // let the island finish springing into place
+  await new Promise((r) => setTimeout(r, 700));
+  const pr = pillEl.getBoundingClientRect();
+  const vr = video.getBoundingClientRect();
+  check('A: island floats at the top centre of the reel', Math.abs(pr.left + pr.width / 2 - (vr.left + vr.width / 2)) <= 12 && pr.top >= vr.top && pr.top <= vr.top + 16 && pr.width > 0,
+    'pill ' + Math.round(pr.left) + ',' + Math.round(pr.top) + ' w' + Math.round(pr.width) + ' / video ' + Math.round(vr.left) + ',' + Math.round(vr.top) + ' w' + Math.round(vr.width));
+  // tap: the island springs open with details; Escape or a tap outside folds it back
+  const w0 = pillEl.getBoundingClientRect().width;
+  pillEl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 1 }));
+  pillEl.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 5, clientY: 5, pointerId: 1 }));
+  await new Promise((r) => setTimeout(r, 900));
+  const w1 = pillEl.getBoundingClientRect().width;
+  check('A: tapping opens the island wider with today\'s details', pillEl.classList.contains('expanded') && w1 > w0 + 60 && /today/.test(shadowText()) && /Pause 15m/.test(shadowText()), Math.round(w0) + ' -> ' + Math.round(w1));
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await new Promise((r) => setTimeout(r, 900));
+  check('A: Escape folds it back', !pillEl.classList.contains('expanded') && Math.abs(pillEl.getBoundingClientRect().width - w0) < 12, Math.round(pillEl.getBoundingClientRect().width));
+  await setSettings({ counterCorner: 'middle-right' });
+  await advance(1);
+  await new Promise((r) => setTimeout(r, 700));
+  const mr = pillEl.getBoundingClientRect();
+  check('A: "right side, middle" option moves it', mr.right > innerWidth - 40 && Math.abs(mr.top + mr.height / 2 - innerHeight / 2) < 30, Math.round(mr.right) + ',' + Math.round(mr.top));
+  await setSettings({ counterCorner: 'video-top' });
+  await advance(1);
+  if (new URLSearchParams(location.search).get('hold') === 'A') { out('pass', 'holding after the counter checks for a screenshot'); window.__done = { held: true }; return; }
+  check('A: no limit set, so no pause overlay', !shadowHas('.pause'));
+  check('A: the island carried a gentle streak reminder along the way', sawStreakToast, '');
+  const sess = (await session.get('session')).session;
+  check('A: streak reached 25 and 50 (nudges fired once each)', sess && sess.streak >= 58 && sess.streakNudges === 2, sess && ('streak=' + sess.streak + ' nudges=' + sess.streakNudges));
+
+  // ---- B. Not a reel page ----
+  loc.pathname = '/watch';
+  await advance(6); // lets time already pending from the last reel flush first
+  const before = await todayDay();
+  await advance(30);
+  let after = await todayDay();
+  check('B: watching a normal video adds nothing', after.r === before.r && after.s === before.s, before.s + ' -> ' + after.s);
+
+  // ---- C. Paused video ----
+  loc.pathname = '/shorts/paused1';
+  video.pause();
+  await advance(6);
+  const beforeC = await todayDay();
+  await advance(20);
+  after = await todayDay();
+  check('C: a paused reel adds no time', after.s === beforeC.s, beforeC.s + ' -> ' + after.s);
+  video.play(); await new Promise((r) => setTimeout(r, 300));
+  await advance(12); // includes up to 5s of normal flush delay
+  after = await todayDay();
+  check('C: resuming counts again', after.s >= beforeC.s + 4 && after.r === beforeC.r + 1, after.s + ' reels ' + after.r);
+
+  // ---- D. Idle: user stops touching the page ----
+  const s0 = (await todayDay()).s;
+  await advance(300, { touch: false });
+  const s1 = (await todayDay()).s;
+  check('D: after 2 idle minutes timing stops (about 120s counted, not 300s)', s1 - s0 >= 100 && s1 - s0 <= 135, s1 - s0);
+  window.dispatchEvent(new Event('pointermove'));
+  await advance(5);
+  check('D: touching the page resumes timing', (await todayDay()).s > s1, '');
+
+  // ---- E. TikTok feed: the URL never changes, a new <video> appears per reel ----
+  loc.hostname = 'www.tiktok.com'; loc.pathname = '/foryou';
+  const e0 = await todayDay();
+  for (let i = 0; i < 8; i++) {
+    video.remove();
+    video = makeVideo();
+    await new Promise((r) => setTimeout(r, 500));
+    await advance(4);
+  }
+  const e1 = await todayDay();
+  check('E: TikTok feed counts each new video (8 reels)', e1.r - e0.r >= 7 && e1.r - e0.r <= 8, e1.r - e0.r);
+  check('E: TikTok time is filed under TikTok', e1.p.tiktok && e1.p.tiktok.r >= 7, JSON.stringify(e1.p.tiktok));
+  loc.hostname = 'www.youtube.com'; loc.pathname = '/shorts/back';
+
+  // ---- F. Limit reached: breathing pause appears, video is paused ----
+  const f0 = await todayDay();
+  await setSettings({ dailyReelLimit: f0.r + 3, mindfulPause: true, streakNudge: 0 });
+  for (let i = 0; i < 8 && !shadowHas('.pause'); i++) { loc.pathname = '/shorts/lim' + i; await advance(4); }
+  check('F: limit reached shows the breathing pause', shadowHas('.pause'), '');
+  check('F: the video was paused behind it', video.paused, '');
+  const heading = roots.map((r) => (r.querySelector('.pause h2') || {}).textContent).find(Boolean);
+  check('F: pause text offers a calm message', heading === 'Take a breath', heading);
+  if (new URLSearchParams(location.search).get('hold') === '1') { out('pass', 'holding on the pause overlay for a screenshot'); window.__done = { held: true }; return; }
+  const keep = roots.map((r) => r.querySelector('.pause button:last-child')).find(Boolean);
+  check('F: "Keep scrolling" is locked for the countdown', keep && keep.disabled, keep && keep.textContent);
+  await advance(12);
+  check('F: after 10 seconds it unlocks', keep && !keep.disabled, keep && keep.textContent);
+  keep.click();
+  await new Promise((r) => setTimeout(r, 400));
+  check('F: continuing closes the overlay and resumes the video', !shadowHas('.pause') && !video.paused, 'paused=' + video.paused);
+  check('F: counter turns red when over the limit', roots.some((r) => r.querySelector('.isl.over')), '');
+
+  // ---- G. Snooze ----
+  await setSettings({ snoozeUntil: fakeNow + 10 * 60000 });
+  await advance(3);
+  const g0 = await todayDay();
+  await advance(30);
+  const g1 = await todayDay();
+  check('G: while paused nothing is recorded', g1.s === g0.s && g1.r === g0.r, g0.s + ' -> ' + g1.s);
+  check('G: counter says Paused', /Paused/.test(shadowText()), shadowText().slice(0, 60));
+  await setSettings({ snoozeUntil: 0 });
+  await advance(6);
+  check('G: resuming records again', (await todayDay()).s > g1.s, '');
+
+  // ---- J. The island while paused: pause from the island, the way back, sync, expiry, refresh ----
+  const real = (ms) => new Promise((r) => setTimeout(r, ms));
+  const isl = () => liveRoots().map((r) => r.querySelector('.isl')).find(Boolean) || null;
+  const box = () => isl().getBoundingClientRect();
+  const reel = () => video.getBoundingClientRect();
+  const barText = () => [...isl().querySelector('.bar').children].filter((c) => !c.hidden).map((c) => c.textContent.trim()).filter(Boolean).join(' ');
+  // Polls (in real time) for a state that needs animation frames; this page may run in a throttled background pane.
+  const until = async (fn, ms = 4000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; await real(60); } return !!fn(); };
+  const calm = () => until(() => isl() && !isl().classList.contains('noting') && !isl().classList.contains('expanded'), 12000);
+  const cardButtons = () => [...isl().querySelectorAll('.actions button')].filter((b) => !b.hidden).map((b) => b.textContent.trim());
+  const cardBtn = (label) => [...isl().querySelectorAll('.actions button')].find((b) => !b.hidden && b.textContent.trim() === label);
+  const pill = () => isl().querySelector('.resume');
+  const pillShown = () => !pill().hidden && pill().getBoundingClientRect().width > 30;
+  const stored = async () => (await local.get('settings')).settings || {};
+  const tap = async (el) => {
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 1 }));
+    el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 5, clientY: 5, pointerId: 1 }));
+    await real(750);
+  };
+  const compact = () => !isl().classList.contains('expanded') && !isl().classList.contains('noting') && box().height < 50 && box().width < 290;
+  const reelCentred = () => { const b = box(), r = reel(); const top = b.top - Math.max(r.top, 0); return Math.abs(b.left + b.width / 2 - (r.left + r.width / 2)) <= 4 && top >= 2 && top <= 14; };
+  const contentCode = await load('content.js');
+  // What F5 does to the content script: the old copy is orphaned and removes itself, and a fresh one starts.
+  async function refresh(opts = {}) {
+    chrome.runtime.id = undefined;
+    await advance(2);
+    chrome.runtime.id = 'harness';
+    run(contentCode);
+    for (let i = 0; i < 20 && !isl(); i++) await real(25);
+    if (!opts.quick) { await advance(2); await real(700); }
+  }
+
+  // the harness page can be narrow: put the reel in the middle so no card is squeezed against the window edge
+  const midReel = 'right:auto;left:50%;margin-left:-90px;';
+  video.style.cssText = midReel;
+  await setSettings({ snoozeUntil: 0, dailyReelLimit: 0, mindfulPause: false, counterCorner: 'video-top' });
+  loc.hostname = 'www.youtube.com'; loc.pathname = '/shorts/jpause';
+  await advance(3);
+  await calm(); // earlier reminders fold away first
+  await real(300);
+  check('J: live island shows no Resume button', !isl().classList.contains('paused') && !pillShown(), barText());
+  await tap(isl());
+  check('J: live card offers Pause 15m, Focus 30m, Dashboard, Hide', cardButtons().join('/') === 'Pause 15m/Focus 30m/Dashboard/Hide', cardButtons().join('/'));
+  cardBtn('Pause 15m').click();
+  await advance(1);
+  await until(compact);
+  const j1 = await stored();
+  check('J: Pause 15m on the island is saved (15 minutes)', j1.snoozeUntil - fakeNow > 14 * 60000 && j1.snoozeUntil - fakeNow <= 15 * 60000, Math.round((j1.snoozeUntil - fakeNow) / 1000) + 's');
+  check('J: pausing leaves the island folded: not expanded, no note, compact height', compact(), Math.round(box().width) + 'x' + Math.round(box().height));
+  check('J: compact paused island: pause icon, "Paused", time left, Resume pill', isl().classList.contains('paused') && /^Paused.*1[45]m left.*Resume$/.test(barText()) && pillShown() && getComputedStyle(isl().querySelector('.eq i:nth-child(3)')).display === 'none', barText());
+  check('J: paused island stays on the top centre of the reel', await until(reelCentred), Math.round(box().left + box().width / 2) + ' vs ' + Math.round(reel().left + reel().width / 2));
+  const jd0 = await todayDay();
+  await advance(65);
+  check('J: time left counts down (14m after a minute)', /14m left/.test(barText()), barText());
+  check('J: nothing is recorded while paused', (await todayDay()).s === jd0.s, jd0.s + ' -> ' + (await todayDay()).s);
+  await setSettings({ snoozeUntil: fakeNow + 30000 });
+  await advance(1);
+  const sec1 = Number((/(\d+)s left/.exec(barText()) || [])[1]);
+  await advance(8);
+  const sec2 = Number((/(\d+)s left/.exec(barText()) || [])[1]);
+  check('J: under a minute it shows seconds and counts down', sec1 >= 28 && sec2 <= sec1 - 7, sec1 + ' -> ' + sec2);
+  await setSettings({ snoozeUntil: fakeNow + 15 * 60000 });
+  await advance(1);
+  await tap(isl());
+  const jcard = isl().textContent.replace(/\s+/g, ' ');
+  check('J: paused card says "Tracking paused until HH:MM"', /Tracking paused until \d\d:\d\d/.test(jcard), jcard.slice(0, 120));
+  check('J: paused card buttons are Resume now, +15m, Dashboard, Hide (no Pause 15m)', cardButtons().join('/') === 'Resume now/+15m/Focus 30m/Dashboard/Hide', cardButtons().join('/'));
+  const before15 = (await stored()).snoozeUntil;
+  cardBtn('+15m').click();
+  await advance(1);
+  await real(400);
+  const after15 = (await stored()).snoozeUntil;
+  check('J: +15m adds 15 minutes', after15 - before15 === 15 * 60000, (after15 - before15) / 60000 + ' min');
+  check('J: no note is showing before the resume', !isl().classList.contains('noting'), '');
+  cardBtn('Resume now').click();
+  await advance(1);
+  await real(900);
+  check('J: Resume now sets the pause to 0 at once', (await stored()).snoozeUntil === 0, (await stored()).snoozeUntil);
+  check('J: island is live again, card closed, with a "Tracking resumed" note', !isl().classList.contains('paused') && !isl().classList.contains('expanded') && /\d+\s*reels?/.test(barText()) && isl().classList.contains('noting') && /Tracking resumed/.test(isl().querySelector('.note').textContent) && !pillShown(), barText());
+  const jd1 = await todayDay();
+  await advance(8);
+  check('J: counting really starts again after Resume', (await todayDay()).s > jd1.s, jd1.s + ' -> ' + (await todayDay()).s);
+  await real(3800); // let the note fold away by itself
+  check('J: the note folds away again', !isl().classList.contains('noting'), '');
+  // pause started in the popup, and the Resume pill straight on the bar
+  await setSettings({ snoozeUntil: fakeNow + 10 * 60000 });
+  await advance(1);
+  await real(500);
+  check('J: a pause started elsewhere (popup) shows on the island without a refresh', isl().classList.contains('paused') && pillShown() && /Paused/.test(barText()), barText());
+  pill().click();
+  await advance(1);
+  await real(500);
+  check('J: Resume pill on the bar resumes (storage 0, live state)', (await stored()).snoozeUntil === 0 && !isl().classList.contains('paused') && /\d+\s*reels?/.test(barText()), barText());
+  await real(3800);
+  // the pause runs out by itself
+  await setSettings({ snoozeUntil: fakeNow + 20000 });
+  await advance(2);
+  check('J: a short pause shows as paused', isl().classList.contains('paused') && !isl().classList.contains('noting'), barText());
+  await advance(22);
+  await real(500);
+  check('J: when the time runs out the island switches back by itself, with a note', !isl().classList.contains('paused') && isl().classList.contains('noting') && /Tracking resumed/.test(isl().querySelector('.note').textContent) && /\d+\s*reels?/.test(barText()), barText());
+  const jd2 = await todayDay();
+  await advance(8);
+  check('J: tracker counts again after the pause ended by itself', (await todayDay()).s > jd2.s, jd2.s + ' -> ' + (await todayDay()).s);
+  // rest of today (the popup sets the next midnight)
+  const midnight = new FDate(fakeNow); midnight.setHours(24, 0, 0, 0);
+  await setSettings({ snoozeUntil: midnight.getTime() });
+  await advance(2);
+  await real(500);
+  check('J: "rest of today" reads "till midnight", never a huge minute count', /Paused.*till midnight/.test(barText()) && !/\d{3,}m/.test(barText()), barText());
+  await tap(isl());
+  const jrest = isl().textContent.replace(/\s+/g, ' ');
+  check('J: "rest of today" card says paused until midnight and has no +15m', /Tracking paused until midnight/.test(jrest) && cardButtons().join('/') === 'Resume now/Focus 30m/Dashboard/Hide', cardButtons().join('/'));
+  await tap(isl()); // fold it again
+  // refresh during a pause keeps the paused state with a working Resume
+  await setSettings({ snoozeUntil: fakeNow + 10 * 60000 });
+  await advance(1);
+  await refresh();
+  check('J: after a refresh during a pause the island is still paused, with Resume', isl() && isl().classList.contains('paused') && pillShown() && /Paused.*(9|10)m left/.test(barText()), isl() && barText());
+  check('J: ...and is on the top centre of the reel straight away', await until(reelCentred, 1500), '');
+  pill().click();
+  await advance(1);
+  await real(500);
+  check('J: ...and that Resume works', (await stored()).snoozeUntil === 0 && !isl().classList.contains('paused'), barText());
+  await calm();
+
+  // ---- K. Placement: always top middle, dragging is temporary ----
+  await setSettings({ counterCorner: 'video-top' });
+  const k0 = await stored();
+  check('K: a counterPos saved by 1.0.0 stays gone from storage', !('counterPos' in k0), JSON.stringify(Object.keys(k0)));
+  video.style.cssText = 'right:auto;left:30%;margin-left:0;width:260px;height:400px;top:40%';
+  await advance(1);
+  check('K: follows the reel when it moves (side bar opens, window resizes)', await until(reelCentred, 2000), Math.round(box().left + box().width / 2) + ' vs ' + Math.round(reel().left + reel().width / 2));
+  video.style.cssText = 'right:auto;left:55%;margin-left:0;width:180px;height:320px;top:30%';
+  await advance(1);
+  check('K: ...and follows its new top edge too', await until(reelCentred, 2000), 'island top ' + Math.round(box().top) + ' reel top ' + Math.round(reel().top));
+  video.style.cssText = midReel;
+  await advance(1);
+  await until(reelCentred, 2000);
+  isl().classList.add('ready'); // the state it is in once its first frame is drawn
+  const cs = getComputedStyle(isl());
+  const durs = cs.transitionDuration.split(',').map((d) => parseFloat(d));
+  const moving = cs.transitionProperty.split(',').map((p) => p.trim()).filter((p, i) => durs[i % durs.length] > 0 && /^(left|top|translate|all)$/.test(p));
+  check('K: no left/top transitions that could make it drift', moving.length === 0 && /width/.test(cs.transitionProperty), cs.transitionProperty);
+  const wasOn = isl();
+  await real(900); // let any width animation finish, so the drag is measured against a settled island
+  const k1 = box();
+  const keepSettings = JSON.stringify(await stored());
+  const ptr = (type, x, y) => wasOn.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 5 }));
+  ptr('pointerdown', k1.left + 10, k1.top + 10);
+  ptr('pointermove', k1.left - 110, k1.top + 190);
+  ptr('pointerup', k1.left - 110, k1.top + 190);
+  await real(300);
+  const k2 = box();
+  check('K: dragging moves the island', Math.abs(k2.left - (k1.left - 120)) <= 8 && Math.abs(k2.top - (k1.top + 180)) <= 8, Math.round(k2.left - k1.left) + ',' + Math.round(k2.top - k1.top) + ' from ' + Math.round(k1.left) + ',' + Math.round(k1.top) + ' win ' + innerWidth + 'x' + innerHeight);
+  await advance(2);
+  check('K: a drag is not saved anywhere', JSON.stringify(await stored()) === keepSettings && !/counterPos/.test(JSON.stringify(local.data)), '');
+  check('K: and it stays where it was put while the page is open', Math.abs(box().left - k2.left) <= 2 && Math.abs(box().top - k2.top) <= 2, '');
+  wasOn.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  check('K: double-click snaps it back to the top of the reel', await until(reelCentred, 2000), '');
+  ptr('pointerdown', k1.left + 10, k1.top + 10);
+  ptr('pointermove', k1.left - 100, k1.top + 90);
+  ptr('pointerup', k1.left - 100, k1.top + 90);
+  await real(300);
+  check('K: dragged again, it is away from the reel', !reelCentred(), '');
+  await refresh();
+  check('K: after a refresh it is back at the top middle of the reel', await until(reelCentred, 2000), Math.round(box().left + box().width / 2) + ' vs ' + Math.round(reel().left + reel().width / 2));
+
+  // no reel on screen yet: stay invisible, then settle for the window centre; never flash in a wrong place
+  video.style.display = 'none';
+  await refresh({ quick: true });
+  const frames = [];
+  for (let i = 0; i < 6; i++) { frames.push(getComputedStyle(isl()).visibility); await real(40); }
+  check('K: with no reel laid out yet the new island is not visible (no wrong-place flash)', frames.every((f) => f === 'hidden'), frames.join(','));
+  video.style.display = '';
+  const frames2 = [];
+  for (let i = 0; i < 8; i++) { await advance(0.5); frames2.push({ vis: getComputedStyle(isl()).visibility, ok: reelCentred() }); await real(40); }
+  check('K: as soon as the reel exists it appears, and only ever on the reel', frames2.some((f) => f.vis === 'visible') && frames2.every((f) => f.vis === 'hidden' || f.ok), frames2.map((f) => f.vis[0] + (f.ok ? '+' : '-')).join(' '));
+  video.style.display = 'none';
+  await refresh({ quick: true });
+  await advance(2);
+  await until(() => getComputedStyle(isl()).visibility === 'visible', 1500);
+  const ctr = box();
+  const cw = document.documentElement.clientWidth;
+  check('K: if no reel shows up it is centred at the top of the window within 2s', getComputedStyle(isl()).visibility === 'visible' && Math.abs(ctr.left + ctr.width / 2 - cw / 2) <= 4 && ctr.top >= 8 && ctr.top <= 14, Math.round(ctr.left + ctr.width / 2) + ',' + Math.round(ctr.top) + ' of ' + cw);
+  video.style.display = '';
+  await advance(1);
+  check('K: ...and moves onto the reel once it appears', await until(reelCentred, 2000), '');
+  await calm();
+
+  // the dashboard's position choices still work
+  const W = document.documentElement.clientWidth;
+  const Hh = document.documentElement.clientHeight;
+  const spots = {
+    'top-center': (b) => Math.abs(b.left + b.width / 2 - W / 2) <= 4 && Math.abs(b.top - 72) <= 2,
+    'top-left': (b) => Math.abs(b.left - 16) <= 2 && Math.abs(b.top - 72) <= 2,
+    'top-right': (b) => Math.abs(b.right - (W - 16)) <= 2 && Math.abs(b.top - 72) <= 2,
+    'bottom-left': (b) => Math.abs(b.left - 16) <= 2 && Math.abs(b.bottom - (Hh - 16)) <= 2,
+    'bottom-right': (b) => Math.abs(b.right - (W - 16)) <= 2 && Math.abs(b.bottom - (Hh - 16)) <= 2,
+    'middle-right': (b) => Math.abs(b.right - (W - 16)) <= 2 && Math.abs(b.top + b.height / 2 - Hh / 2) <= 3,
+  };
+  for (const [corner, ok] of Object.entries(spots)) {
+    await setSettings({ counterCorner: corner });
+    await advance(1);
+    await until(() => ok(box()), 2500);
+    check('K: position choice "' + corner + '" puts it there', ok(box()), Math.round(box().left) + ',' + Math.round(box().top) + ' ' + Math.round(box().width) + 'x' + Math.round(box().height));
+  }
+  await tap(isl());
+  await until(() => box().width > 250);
+  const bigBox = box();
+  check('K: an opened card keeps its anchor and stays on screen', bigBox.width > 250 && bigBox.top >= 0 && bigBox.bottom <= Hh && Math.abs(bigBox.right - (W - 16)) <= 2 && Math.abs(bigBox.top + bigBox.height / 2 - Hh / 2) <= 3, Math.round(bigBox.width) + 'x' + Math.round(bigBox.height));
+  await tap(isl());
+  await setSettings({ counterCorner: 'video-top' });
+  await advance(1);
+  check('K: back to the default, it is centred on the reel again', await until(reelCentred, 2500), '');
+
+  // a narrow window: never wider than the window, and the Resume button stays inside the island
+  const innerDesc = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => 200 });
+  await setSettings({ snoozeUntil: fakeNow + 10 * 60000 });
+  await advance(2);
+  await until(() => box().width <= 185, 3000);
+  const nb = box();
+  const pb = pill().getBoundingClientRect();
+  check('K: in a 200px window the paused island fits (8px margins) and Resume is inside it', nb.width <= 185 && nb.left >= 7 && nb.right <= 193 && pillShown() && pb.left >= nb.left && pb.right <= nb.right + 2, Math.round(nb.left) + '..' + Math.round(nb.right) + ' resume ' + Math.round(pb.left) + '..' + Math.round(pb.right));
+  Object.defineProperty(window, 'innerWidth', innerDesc);
+  await setSettings({ snoozeUntil: 0 });
+  await advance(2);
+  check('K: back in a normal window it is centred on the reel again', await until(reelCentred, 3000), '');
+
+  // ---- L. Hide, tabs, reloaded extension ----
+  loc.pathname = '/shorts/lstuck';
+  await advance(2);
+  await tap(isl());
+  check('L: the card is open', isl().classList.contains('expanded'), '');
+  loc.pathname = '/watch';
+  await advance(3);
+  check('L: leaving the reel page hides the island', getComputedStyle(isl()).display === 'none', '');
+  loc.pathname = '/shorts/lback';
+  await advance(3);
+  await until(() => getComputedStyle(isl()).display !== 'none' && box().width < 220 && reelCentred(), 3000);
+  check('L: coming back shows it compact and centred, not stuck open', getComputedStyle(isl()).display !== 'none' && !isl().classList.contains('expanded') && box().width < 220 && reelCentred(), Math.round(box().width) + 'px');
+  await tap(isl());
+  cardBtn('Hide').click();
+  await advance(3);
+  check('L: Hide hides it, and it stays hidden on this page', getComputedStyle(isl()).display === 'none', '');
+  await refresh();
+  check('L: after a refresh it is back, compact and centred', getComputedStyle(isl()).display !== 'none' && !isl().classList.contains('expanded') && await until(reelCentred, 2000), '');
+
+  const setVis = (v) => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v }); document.dispatchEvent(new Event('visibilitychange')); };
+  await advance(6);
+  setVis('hidden');
+  await advance(3); // what was already counted is sent as the tab goes to the background
+  const dv0 = await todayDay();
+  await advance(14);
+  const dv1 = await todayDay();
+  check('L: a tab in the background records nothing', dv1.s === dv0.s, dv0.s + ' -> ' + dv1.s);
+  await setSettings({ snoozeUntil: fakeNow + 10 * 60000 });
+  setVis('visible');
+  await advance(1);
+  check('L: switching back to the tab shows the current (paused) state', await until(() => isl().classList.contains('paused') && pillShown() && reelCentred(), 2500), barText());
+  await setSettings({ snoozeUntil: 0 });
+  await advance(8);
+  check('L: and counting continues once resumed', (await todayDay()).s > dv1.s, dv1.s + ' -> ' + (await todayDay()).s);
+  delete document.visibilityState;
+
+  const errCount = errors.length;
+  await tap(isl());
+  const realGet = local.get;
+  local.get = () => { throw new Error('Extension context invalidated.'); };
+  cardBtn('Pause 15m').click();
+  await real(300);
+  local.get = realGet;
+  check('L: clicking after the extension was reloaded throws nothing and removes the island', errors.length === errCount && !document.querySelector('[data-reel-meter]'), errors.slice(errCount).join(' | '));
+  await refresh();
+  chrome.runtime.id = undefined;
+  await advance(2);
+  await setSettings({ counterCorner: 'top-left' });
+  await advance(2);
+  check('L: an orphaned script cleans up after itself and stays quiet', !document.querySelector('[data-reel-meter]') && errors.length === errCount, errors.slice(errCount).join(' | '));
+  chrome.runtime.id = 'harness';
+  await setSettings({ counterCorner: 'video-top' });
+  await refresh();
+  check('L: a fresh script after that works as normal', await until(reelCentred, 2000) && /\d+\s*reels?/.test(barText()), barText());
+  video.style.cssText = '';
+
+  // ---- H. A platform turned off in settings ----
+  await setSettings({ platforms: { youtube: false, instagram: true, tiktok: true, facebook: true } });
+  await advance(2);
+  const h0 = await todayDay();
+  await advance(20);
+  check('H: a disabled app records nothing', (await todayDay()).s === h0.s, '');
+
+  // ---- M. The reel blocker: per-app blocks and breaks, levels, 5 minute break, strikes and lockout, focus, schedule,
+  //         hard limit, Shorts as videos, and attempts to cheat the background worker ----
+  const blockEl = () => liveRoots().map((r) => r.querySelector('.block')).find(Boolean) || null;
+  const blockBtn = (label) => [...blockEl().querySelectorAll('button')].find((b) => !b.hidden && b.textContent.trim() === label);
+  const bstate = () => C.normalizeBlockState(local.data.blockState);
+  const setBlock = async (patch) => { await setSettings({ block: Object.assign({}, C.normalizeBlock((await stored()).block), patch) }); };
+  const clearBlock = async () => { await setSettings({ block: C.normalizeBlock({}) }); await local.set({ blockState: C.emptyBlockState() }); await nap(); };
+  const apps = (over) => Object.assign({}, C.normalizeBlock({}).apps, over);
+  const islandHidden = () => !isl() || isl().style.display === 'none';
+  const fricInput = () => blockEl().querySelector('input');
+  const MIN = 60000;
+  const HOUR = 3600000;
+  const asPage = (host) => ({ id: 'harness', url: 'https://' + host + '/', tab: { id: 1, url: 'https://' + host + '/' } });
+  const ask = (msg, sender) => new Promise((resolve) => { const keep = msgListeners[0](msg, sender || asPage(loc.hostname), resolve); if (!keep) resolve(undefined); });
+  const goTo = (platform, path) => {
+    const host = { youtube: 'www.youtube.com', facebook: 'www.facebook.com', tiktok: 'www.tiktok.com', instagram: 'www.instagram.com' }[platform];
+    loc.hostname = host; loc.origin = 'https://' + host; loc.pathname = path;
+  };
+  /** Walk through the challenge on the block screen: wait, type the sentence, press Enter. */
+  const passChallenge = async (level, sentence) => {
+    const rules = C.levelRules(level);
+    blockBtn('I need to continue').click();
+    await real(80);
+    await advance(rules.waitSec + 2);
+    fricInput().value = sentence || rules.sentence;
+    fricInput().dispatchEvent(new Event('input'));
+    fricInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, composed: true }));
+    await advance(1);
+    await real(250);
+  };
+  const keyHits = [];
+  document.addEventListener('keydown', () => keyHits.push(1));
+  video.style.cssText = '';
+  video.play().catch(() => {});
+  await setSettings({ platforms: { youtube: true, instagram: true, tiktok: true, facebook: true }, snoozeUntil: 0, dailyReelLimit: 0, dailyMinuteLimit: 0, mindfulPause: true, counterCorner: 'video-top' });
+  await clearBlock();
+  goTo('youtube', '/shorts/blk1');
+  await advance(4);
+  check('M: with nothing switched on, no page is blocked', !blockEl() && document.documentElement.style.overflow !== 'hidden');
+
+  // more screenshot stops: ?hold=F (challenge, wait running), T / X / N / R (typing: so far, a slip, almost, ready), B (island on a break),
+  // W (last-unblock warning), L (lockout), S (Full restriction block)
+  const holdAt = (id) => { if (new URLSearchParams(location.search).get('hold') !== id) return false; out('pass', 'holding at ' + id + ' for a screenshot'); window.__done = { held: true }; return true; };
+
+  // per-app block
+  await setBlock({ apps: apps({ youtube: 'block', facebook: 'block' }) });
+  await advance(1);
+  await real(200);
+  check('M: a blocked app shows the block screen with the reason', !!blockEl() && /Reels are blocked/.test(blockEl().textContent) && /YouTube Shorts is set to block reels/.test(blockEl().textContent), blockEl() && blockEl().textContent.slice(0, 80));
+  if (new URLSearchParams(location.search).get('hold') === 'M') { out('pass', 'holding on the block screen for a screenshot'); window.__done = { held: true }; return; }
+  check('M: the block screen shows the unblock count (0 of 3 used)', /0 of 3 unblocks used/.test(blockEl().textContent) && blockEl().querySelectorAll('.pips i').length === 3);
+  check('M: the counter island steps aside while blocked', islandHidden());
+  check('M: the video behind it is stopped and the page cannot scroll', video.paused && document.documentElement.style.overflow === 'hidden');
+  check('M: a YouTube Short offers "Watch as a normal video"', !!blockBtn('Watch as a normal video'));
+  await advance(8);
+  const mb0 = await todayDay();
+  await advance(20);
+  const mb1 = await todayDay();
+  check('M: nothing is counted while blocked', mb1.s === mb0.s && mb1.r === mb0.r, mb0.s + ' -> ' + mb1.s);
+  const hitsBefore = keyHits.length;
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true, composed: true }));
+  check('M: the page behind the block screen gets no key presses', keyHits.length === hitsBefore);
+  blockBtn('Watch as a normal video').click();
+  check('M: "Watch as a normal video" opens the ordinary watch page', loc.assigned[loc.assigned.length - 1] === 'https://www.youtube.com/watch?v=blk1', loc.assigned[loc.assigned.length - 1]);
+  await setSettings({ snoozeUntil: fakeNow + 600000 });
+  await advance(2);
+  check('M: pausing the counter does not switch the block off', !!blockEl());
+  await setSettings({ snoozeUntil: 0 });
+  await advance(1);
+
+  // the challenge, with the Restricted level (30 s wait)
+  blockBtn('I need to continue').click();
+  await real(80);
+  check('M: "I need to continue" opens a locked challenge', !blockEl().querySelector('.fric').hidden && fricInput().disabled);
+  check('M: the challenge says which unblock this is and what the last one costs', /Unblock 1 of 3/.test(blockEl().querySelector('.fric').textContent));
+  await advance(12);
+  if (holdAt('F')) return;
+  fricInput().value = C.levelRules('balanced').sentence;
+  fricInput().dispatchEvent(new Event('input'));
+  check('M: it cannot be skipped before the 30 second wait is over', fricInput().disabled && blockBtn('Unblock for 5 minutes').disabled);
+  await advance(22);
+  check('M: after the wait the sentence box opens', !fricInput().disabled);
+  const eater = (e) => { if (/^[rl]$/i.test(e.key)) e.preventDefault(); };
+  document.addEventListener('keydown', eater, true);
+  const typedOk = fricInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'r', bubbles: true, cancelable: true, composed: true }))
+    && fricInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'L', bubbles: true, cancelable: true, composed: true }));
+  document.removeEventListener('keydown', eater, true);
+  check('M: a site that swallows keys such as R and L cannot stop the sentence from being typed', typedOk === true);
+  const typeInto = (v) => { fricInput().value = v; fricInput().dispatchEvent(new Event('input')); };
+  typeInto('I choose to ke');
+  if (holdAt('T')) return;
+  typeInto('I chose');
+  if (holdAt('X')) return;
+  typeInto('I choose to keep scro');
+  if (holdAt('N')) return;
+  fricInput().value = 'I choose to keep';
+  fricInput().dispatchEvent(new Event('input'));
+  check('M: a wrong or partial sentence does not unlock', blockBtn('Unblock for 5 minutes').disabled);
+  fricInput().value = ' i CHOOSE to keep scrolling. ';
+  fricInput().dispatchEvent(new Event('input'));
+  check('M: the right sentence (case and punctuation forgiven) unlocks', !blockBtn('Unblock for 5 minutes').disabled);
+  if (holdAt('R')) return;
+  fricInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, composed: true }));
+  await advance(2);
+  if (new URLSearchParams(location.search).get('hold') === 'U') { // the "break started" moment, frozen part way through
+    liveRoots().forEach((r) => { const st = document.createElement('style'); st.textContent = '.bsplash, .bsplash .sp { animation-play-state: paused !important; animation-delay: -.45s !important }'; r.appendChild(st); });
+    out('pass', 'holding on the break-started moment for a screenshot'); window.__done = { held: true }; return;
+  }
+  await real(300);
+  const ms1 = bstate();
+  check('M: unblocking opens a 5 minute break (not 10) for YouTube', !blockEl() && Math.abs(ms1.breaks.youtube - (fakeNow + 5 * MIN)) < 8000, String(ms1.breaks.youtube - fakeNow));
+  check('M: ...and it is counted as unblock 1', ms1.unlocks.youtube.length === 1);
+  check('M: the page comes back: scrolling, video playing, island shown', document.documentElement.style.overflow !== 'hidden' && !video.paused && !islandHidden());
+  check('M: during a break the island offers "Block now"', /Block now/.test(isl().textContent) && !isl().querySelector('.blocknow').hidden);
+  await advance(1);
+  await real(900);
+  if (holdAt('B')) return;
+
+  // per-app separation: the break belongs to YouTube only
+  goTo('facebook', '/reel/123456789');
+  await advance(2);
+  await real(200);
+  check('M: Facebook is still blocked while YouTube is on a break', !!blockEl() && /Facebook Reels is set to block reels/.test(blockEl().textContent), blockEl() && blockEl().textContent.slice(0, 80));
+  check('M: ...and the block screen starts a fresh count for Facebook (0 of 3)', /0 of 3 unblocks used/.test(blockEl().textContent));
+  await passChallenge('balanced');
+  const ms2 = bstate();
+  check('M: unblocking Facebook opens a break for Facebook only', !blockEl() && ms2.breaks.facebook > fakeNow && ms2.unlocks.facebook.length === 1);
+  check('M: ...and leaves YouTube\'s break exactly as it was', ms2.breaks.youtube === ms1.breaks.youtube && ms2.unlocks.youtube.length === 1);
+  goTo('youtube', '/shorts/blk2');
+  await advance(2);
+  check('M: back on YouTube the break is still running', !blockEl());
+
+  // "Block now" ends only this app's break
+  await tap(isl());
+  const blockNow = cardBtn('Block now');
+  check('M: the opened island card has "Block now"', !!blockNow, cardButtons().join(', '));
+  blockNow.click();
+  await advance(2);
+  await real(250);
+  check('M: "Block now" brings the YouTube block back at once, without a challenge', !!blockEl() && bstate().breaks.youtube === 0);
+  check('M: ...and Facebook\'s break is untouched', bstate().breaks.facebook > fakeNow);
+
+  // strikes: the third unblock starts a 6 hour lockout once the break is over
+  await passChallenge('balanced'); // unblock 2
+  check('M: the second unblock is counted (2 of 3)', bstate().unlocks.youtube.length === 2);
+  await tap(isl());
+  cardBtn('Block now').click();
+  await advance(2);
+  await real(250);
+  check('M: the block screen warns that the next unblock is the last', /Unblock 3 of 3|0 of 3|2 of 3/.test(blockEl().textContent));
+  blockBtn('I need to continue').click();
+  await real(80);
+  check('M: the last-unblock warning names the 6 hour lock', /last unblock/i.test(blockEl().querySelector('.fric').textContent) && /6 hours/.test(blockEl().querySelector('.fric').textContent));
+  await advance(3);
+  if (holdAt('W')) return;
+  await advance(32);
+  fricInput().value = 'I choose to keep scrolling';
+  fricInput().dispatchEvent(new Event('input'));
+  fricInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, composed: true }));
+  await advance(2);
+  await real(300);
+  const ms3 = bstate();
+  check('M: the third unblock still gives its 5 minute break', !blockEl() && ms3.breaks.youtube > fakeNow);
+  check('M: ...and a 6 hour lock is set to start when that break ends', Math.abs(ms3.lockUntil.youtube - (ms3.breaks.youtube + 6 * HOUR)) < 1000, String((ms3.lockUntil.youtube - ms3.breaks.youtube) / HOUR));
+  check('M: the island says the app will be locked', /locked for 6 hours/.test(shadowText()) || !!isl(), shadowText().slice(0, 80));
+  await advance(5 * 60 + 5);
+  await real(300);
+  check('M: when the break ends the app is LOCKED, with no way to continue', !!blockEl() && /Locked for a while/.test(blockEl().textContent) && !blockBtn('I need to continue'));
+  await real(700);
+  if (holdAt('L')) return;
+  const refused = await ask({ type: 'unlock-start', platform: 'youtube' });
+  check('M: the worker refuses to start an unblock during a lockout', refused && refused.ok === false && refused.why === 'lockout', JSON.stringify(refused));
+  fakeNow += 6 * HOUR + 2 * MIN; // the lock runs out
+  await advance(3);
+  await real(300);
+  check('M: when the lock is over the plain block is back, with a clean count', !!blockEl() && /Reels are blocked/.test(blockEl().textContent) && /0 of 3/.test(blockEl().textContent) && !!blockBtn('I need to continue'));
+
+  // cheating the worker (a page can ask, it cannot decide)
+  await clearBlock();
+  await setBlock({ apps: apps({ youtube: 'block', facebook: 'block' }) });
+  goTo('youtube', '/shorts/cheat');
+  await advance(2);
+  const wrongApp = await ask({ type: 'unlock-start', platform: 'facebook' }, asPage('www.youtube.com'));
+  check('M: a YouTube page cannot start an unblock for Facebook', wrongApp && wrongApp.ok === false, JSON.stringify(wrongApp));
+  const unknownSender = await ask({ type: 'unlock-start', platform: 'youtube' }, { id: 'harness', url: 'https://evil.example/', tab: { id: 2 } });
+  check('M: a page on another site cannot change the block state', unknownSender && unknownSender.ok === false, JSON.stringify(unknownSender));
+  const started = await ask({ type: 'unlock-start', platform: 'youtube' });
+  check('M: an unblock can be started on the right page', started && started.ok === true && started.waitSec === 30, JSON.stringify(started));
+  const early = await ask({ type: 'unlock', platform: 'youtube', sentence: 'I choose to keep scrolling' });
+  check('M: sending the sentence at once is refused: the worker keeps its own clock', early && early.ok === false && early.why === 'too-soon', JSON.stringify(early));
+  fakeNow += 31000;
+  const wrong = await ask({ type: 'unlock', platform: 'youtube', sentence: 'let me in' });
+  check('M: a wrong sentence is refused by the worker too', wrong && wrong.ok === false && wrong.why === 'sentence', JSON.stringify(wrong));
+  const noStart = await ask({ type: 'unlock', platform: 'youtube', sentence: 'I choose to keep scrolling' }, { id: 'harness', url: 'https://www.youtube.com/', tab: { id: 99 } });
+  check('M: an unblock without its own started wait is refused', noStart && noStart.ok === false && noStart.why === 'too-soon', JSON.stringify(noStart));
+  const bigFocus = await ask({ type: 'focus', platforms: ['youtube'], minutes: 100000 });
+  check('M: an absurd focus time is refused', bigFocus && bigFocus.ok === false);
+  const otherFocus = await ask({ type: 'focus', platforms: ['facebook'], minutes: 30 }, asPage('www.youtube.com'));
+  check('M: a reel page can only start a focus timer for its own app', otherFocus && otherFocus.ok === false && bstate().focus.facebook === 0);
+  const fromPopup = await ask({ type: 'focus', platforms: ['facebook', 'bogus'], minutes: 30 }, { id: 'harness', url: 'chrome-extension://harness/src/ui/popup.html' });
+  check('M: the popup can start a focus timer for chosen apps (unknown apps ignored)', fromPopup && fromPopup.ok === true && bstate().focus.facebook > fakeNow && bstate().focus.youtube === 0);
+  const foreign = await ask({ type: 'unlock-start', platform: 'youtube' }, { id: 'some-other-extension', url: 'https://www.youtube.com/', tab: { id: 1 } });
+  check('M: messages from another extension are ignored', foreign === undefined);
+
+  // levels
+  await clearBlock();
+  await setBlock({ level: 'gentle', apps: apps({ youtube: 'block' }) });
+  goTo('youtube', '/shorts/lv1');
+  await advance(2);
+  await real(200);
+  blockBtn('I need to continue').click();
+  await real(80);
+  await advance(8);
+  check('M: Less restriction asks for only a 10 second wait (still locked at 8 s)', fricInput().disabled);
+  await advance(4);
+  check('M: ...and the box is open after 10 s', !fricInput().disabled);
+  blockBtn('Never mind').click();
+  await clearBlock();
+  await setBlock({ level: 'strict', focus: undefined, apps: apps({ youtube: 'block' }) });
+  await local.set({ blockState: C.applyFocus(C.emptyBlockState(), ['youtube'], 30, fakeNow) });
+  await advance(2);
+  await real(200);
+  check('M: Full restriction: a focus timer has no way past it', !!blockEl() && !blockBtn('I need to continue') && /cannot be unblocked/.test(blockEl().textContent), blockEl() && blockEl().textContent.slice(0, 100));
+  await real(700);
+  if (holdAt('S')) return;
+  await clearBlock();
+  await setBlock({ level: 'strict', apps: apps({ youtube: 'block' }) });
+  await advance(2);
+  await real(200);
+  blockBtn('I need to continue').click();
+  await real(80);
+  await advance(62);
+  fricInput().value = 'I choose to keep scrolling';
+  fricInput().dispatchEvent(new Event('input'));
+  check('M: Full restriction wants the longer sentence', blockBtn('Unblock for 5 minutes').disabled);
+  fricInput().value = C.levelRules('strict').sentence;
+  fricInput().dispatchEvent(new Event('input'));
+  check('M: ...and accepts it after a 60 second wait', !blockBtn('Unblock for 5 minutes').disabled);
+  blockBtn('Never mind').click();
+
+  // focus timer from the island, for this app only
+  await clearBlock();
+  await advance(2);
+  goTo('youtube', '/shorts/fc1');
+  await advance(3);
+  await calm();
+  await tap(isl());
+  const focusBtn = cardBtn('Focus 30m');
+  check('M: the opened island card offers "Focus 30m" for this app', !!focusBtn, cardButtons().join(', '));
+  focusBtn.click();
+  await advance(1);
+  await real(300);
+  const fs1 = bstate();
+  check('M: it blocks THIS app for 30 minutes and no other', !!blockEl() && /Focus time/.test(blockEl().textContent) && Math.abs(fs1.focus.youtube - (fakeNow + 30 * MIN)) < 8000 && fs1.focus.facebook === 0 && fs1.focus.tiktok === 0, JSON.stringify(fs1.focus));
+  goTo('facebook', '/reel/55555555');
+  await advance(2);
+  check('M: Facebook is not blocked by a YouTube focus timer', !blockEl());
+  goTo('youtube', '/shorts/fc1');
+  await local.set({ blockState: C.applyFocus(C.emptyBlockState(), ['youtube'], 1, fakeNow - 40 * 1000) }); // a timer with 20 s left
+  await advance(2);
+  check('M: a running focus timer shows the time left', !!blockEl() && /Focus time/.test(blockEl().textContent) && /\d+s left/.test(blockEl().textContent), blockEl() && blockEl().textContent.slice(0, 80));
+  await advance(24);
+  await real(200);
+  check('M: when the focus timer ends the page is released by itself', !blockEl() && !video.paused);
+  await clearBlock();
+
+  // schedule
+  await advance(2);
+  await setBlock({ schedules: [{ id: 'all', on: true, days: [0, 1, 2, 3, 4, 5, 6], start: '00:00', end: '23:59' }] });
+  await advance(1);
+  await real(200);
+  check('M: a schedule that covers now blocks and says when it ends', !!blockEl() && /Blocked by your schedule/.test(blockEl().textContent) && /until 23:59/.test(blockEl().textContent), blockEl() && blockEl().textContent.slice(0, 90));
+  const farHour = (new Date(fakeNow).getHours() + 6) % 24; // an hour that is certainly not now (the clock was moved by earlier checks)
+  await setBlock({ schedules: [{ id: 'all', on: true, days: [0, 1, 2, 3, 4, 5, 6], start: C.fmtHm(farHour * 60), end: C.fmtHm(farHour * 60 + 60) }] });
+  await advance(2);
+  check('M: a schedule that does not cover now does not block', !blockEl());
+  await clearBlock();
+
+  // hard daily limit
+  const dayNow = await todayDay();
+  await setSettings({ dailyReelLimit: dayNow.r + 2, mindfulPause: true });
+  await setBlock({ hardLimit: true });
+  for (let i = 0; i < 6 && !blockEl(); i++) { loc.pathname = '/shorts/hl' + i; await advance(4); await real(100); }
+  check('M: the hard limit blocks once the daily limit is reached', !!blockEl() && /Daily limit reached/.test(blockEl().textContent), blockEl() && blockEl().textContent.slice(0, 80));
+  check('M: ...and the breathing pause is not shown on top of it', !shadowHas('.pause'));
+  fakeNow = C.nextMidnight(fakeNow) + 5 * MIN; // the clock jumps to just after midnight
+  await advance(3);
+  await real(300);
+  check('M: a new day lifts the daily-limit block', !blockEl(), blockEl() && blockEl().textContent.slice(0, 60));
+  await clearBlock();
+  await setSettings({ dailyReelLimit: 0 });
+
+  // Shorts as normal videos
+  await setBlock({ shortsAsVideos: true });
+  loc.replaced.length = 0;
+  goTo('youtube', '/shorts/red1');
+  await advance(1);
+  check('M: with "Shorts as normal videos" a Short is moved to the watch page', loc.replaced.includes('https://www.youtube.com/watch?v=red1'), loc.replaced.join(','));
+  goTo('tiktok', '/foryou');
+  loc.replaced.length = 0;
+  await advance(2);
+  check('M: other sites are left alone by that option', loc.replaced.length === 0 && !blockEl());
+  goTo('youtube', '/shorts/start');
+  await clearBlock();
+  await advance(2);
+
+  // ---- N. Attacks on the worker, and the loopholes closed in the security review ----
+  const extPage = { id: 'harness', url: 'chrome-extension://harness/dashboard.html' };
+  const SENT = C.levelRules('balanced').sentence;
+  const looser = async () => Object.assign({}, await stored(), { block: Object.assign({}, C.normalizeBlock((await stored()).block), { apps: apps({}) }) });
+  await clearBlock();
+  goTo('youtube', '/shorts/atk1');
+  await setBlock({ apps: apps({ youtube: 'block' }) });
+  await advance(2);
+  let rr = await ask({ type: 'unlock', platform: 'youtube', sentence: SENT }, asPage('www.youtube.com'));
+  check('N: an unblock the worker never started a wait for is refused', rr && rr.ok === false && rr.why === 'too-soon', JSON.stringify(rr));
+  rr = await ask({ type: 'unlock-start', platform: 'youtube' }, asPage('www.facebook.com'));
+  check('N: a Facebook page cannot start an unblock for YouTube', rr && rr.ok === false && rr.why === 'bad-request', JSON.stringify(rr));
+  rr = await ask({ type: 'unlock-start', platform: 'youtube' }, { id: 'someone-else', url: 'https://www.youtube.com/', tab: { id: 1, url: 'https://www.youtube.com/' } });
+  check('N: a message from another extension is ignored (no reply, nothing changed)', rr === undefined || (rr && rr.ok === false), JSON.stringify(rr));
+  rr = await ask({ type: 'unlock-start', platform: 'youtube' }, { id: 'harness', url: 'https://evil.example/', tab: { id: 1, url: 'https://evil.example/' } });
+  check('N: a page that is not one of the four sites is ignored', rr && rr.ok === false && rr.why === 'sender', JSON.stringify(rr));
+  rr = await ask({ type: 'loosen', settings: await looser(), sentence: SENT }, asPage('www.youtube.com'));
+  check('N: a reel page cannot loosen the settings (only the dashboard can)', rr && rr.ok === false && rr.why === 'sender', JSON.stringify(rr));
+  rr = await ask({ type: 'loosen', settings: await looser(), sentence: SENT }, extPage);
+  check('N: the dashboard cannot loosen without the worker\'s own wait', rr && rr.ok === false && rr.why === 'too-soon', JSON.stringify(rr));
+  rr = await ask({ type: 'loosen-start', settings: await looser() }, extPage);
+  check('N: loosening starts a 30 second wait on the worker\'s clock', rr && rr.ok === true && rr.waitSec === 30, JSON.stringify(rr));
+  await advance(10);
+  rr = await ask({ type: 'loosen', settings: await looser(), sentence: SENT }, extPage);
+  check('N: ...and is refused before the wait is over', rr && rr.ok === false && rr.why === 'too-soon', JSON.stringify(rr));
+  await advance(25);
+  rr = await ask({ type: 'loosen', settings: await looser(), sentence: 'not the sentence' }, extPage);
+  check('N: ...and with the wrong sentence', rr && rr.ok === false && rr.why === 'sentence', JSON.stringify(rr));
+  rr = await ask({ type: 'loosen', settings: await looser(), sentence: SENT }, extPage);
+  check('N: after the wait and the right sentence the loosening goes through and is counted',
+    rr && rr.ok === true && (await stored()).block.apps.youtube === 'count' && bstate().loosenUnlocks.length === 1, JSON.stringify(rr));
+  await clearBlock();
+  await setBlock({ level: 'strict', apps: apps({ youtube: 'block' }) });
+  await advance(1);
+  rr = await ask({ type: 'loosen-start', settings: await looser() }, extPage);
+  check('N: Full restriction never allows loosening, even from the dashboard', rr && rr.ok === false && rr.why === 'denied-strict', JSON.stringify(rr));
+
+  // leftovers in session storage (an older version, anything else) must not break starting an unblock
+  await clearBlock();
+  await setBlock({ apps: apps({ youtube: 'block' }) });
+  await advance(1);
+  for (const junk of [777, 'x', [1], { youtube: { t: 1 } }]) {
+    await session.set({ unlockStarts: junk });
+    rr = await ask({ type: 'unlock-start', platform: 'youtube' }, asPage('www.youtube.com'));
+    check('N: leftover wait data ' + JSON.stringify(junk) + ' does not break starting an unblock', rr && rr.ok === true, JSON.stringify(rr));
+  }
+  await session.set({ unlockStarts: {} });
+
+  // hand-made block state: no prototype tricks, no 99 year breaks
+  await clearBlock();
+  const farFuture = fakeNow + 99 * 365 * 24 * HOUR;
+  await local.set({ blockState: JSON.parse('{"breaks":{"__proto__":{"polluted":1},"youtube":' + farFuture + '},"unlocks":{"__proto__":[1]},"focus":{"facebook":' + farFuture + '},"lockUntil":{"tiktok":' + farFuture + '}}') });
+  const hand = C.normalizeBlockState(local.data.blockState, fakeNow);
+  check('N: a hand-made block state cannot pollute Object.prototype', ({}).polluted === undefined && [].polluted === undefined);
+  check('N: ...a far-future break is cut down to 5 minutes', hand.breaks.youtube - fakeNow <= 5 * MIN + 1000, String((hand.breaks.youtube - fakeNow) / HOUR) + ' h');
+  check('N: ...and a far-future focus timer to at most 12 hours', !hand.focus.facebook || hand.focus.facebook - fakeNow <= 12 * HOUR + 1000, String((hand.focus.facebook - fakeNow) / HOUR) + ' h');
+  await clearBlock();
+
+  // the hard daily limit cannot be paused or switched off from the page's own settings
+  const hl0 = await todayDay();
+  await setSettings({ dailyReelLimit: hl0.r + 2, mindfulPause: true });
+  await setBlock({ hardLimit: true });
+  for (let i = 0; i < 6 && !blockEl(); i++) { loc.pathname = '/shorts/atkhl' + i; await advance(4); await real(100); }
+  check('N: (setup) the hard limit is reached and blocks', !!blockEl() && /Daily limit reached/.test(blockEl().textContent));
+  await setSettings({ snoozeUntil: fakeNow + 10 * MIN });
+  await advance(2);
+  await real(200);
+  check('N: pausing the counter does not lift a hard daily limit', !!blockEl());
+  await setSettings({ snoozeUntil: 0, platforms: { youtube: false, instagram: true, tiktok: true, facebook: true } });
+  await advance(2);
+  await real(200);
+  check('N: ...and neither does switching the app off in "Apps to track"', !!blockEl());
+  await setSettings({ platforms: { youtube: true, instagram: true, tiktok: true, facebook: true }, dailyReelLimit: 0 });
+  await clearBlock();
+  goTo('youtube', '/shorts/start');
+  await advance(2);
+
+  // ---- I. Only totals are stored ----
+  const keys = Object.keys((await todayDay())).sort().join(',');
+  const raw = (JSON.stringify(local.data) + JSON.stringify(session.data)).replace(/"shortsAsVideos"/g, '');
+  check('I: stored data has only totals (no ids or URLs)', keys === 'h,p,r,s' && !/reel\d|shorts|youtube\.com|http/.test(raw.replace(/"youtube"|"tiktok"|"instagram"|"facebook"/g, '')), keys);
+
+  check('no script error was thrown during the whole run', errors.length === 0, errors.slice(0, 3).join(' | '));
+  out(failures ? 'fail' : 'pass', '\n' + (failures ? failures + ' FAILED' : 'ALL CHECKS PASSED'));
+  window.__done = { failures };
+})().catch((e) => { document.getElementById('log').textContent += '\nHARNESS ERROR: ' + e.stack; window.__done = { error: String(e) }; });
+</script>

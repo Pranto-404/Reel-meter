@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Reel Meter</title>
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="is-loading">
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--accent-fill)"/><path d="M8 21a8 8 0 0 1 16 0" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".55"/><path d="M16 21l4.2-6.4" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="21" r="2" fill="#fff"/></svg>
+      <h1>Reel Meter</h1>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="open-settings" type="button" aria-label="Open limits and settings" title="Limits and settings"><span data-icon="sliders"></span></button>
+      <button class="btn" id="open-dash" type="button">Dashboard<span data-icon="external"></span></button>
+    </div>
+  </header>
+
+  <main aria-busy="true" id="main">
+    <section class="card hero" aria-labelledby="today-h">
+      <div class="hero-top">
+        <h2 id="today-h" class="eyebrow">Today</h2>
+        <span class="chip good" id="status" data-state="on"><i class="live" aria-hidden="true"></i><span class="pause-ico" data-icon="pause"></span><span id="status-t">Tracking</span></span>
+      </div>
+      <div class="hero-row">
+        <p class="big"><span id="today-reels" class="count skel">00</span></p>
+        <p class="hero-meta"><span id="today-unit">reels</span><br><b id="today-time" class="num skel">00m</b> screen time</p>
+      </div>
+      <div class="limit" id="limit-block" hidden>
+        <div class="meter" id="limit-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Share of today's limit used"><i></i></div>
+        <p class="limit-row small"><span id="limit-text"></span><b id="limit-left"></b></p>
+      </div>
+      <p class="nolimit small muted" id="nolimit" hidden>No daily limit. <button class="link-btn" type="button" id="set-limit">Set one</button></p>
+    </section>
+
+    <section class="card" aria-labelledby="plat-h">
+      <h2 id="plat-h" class="eyebrow">By app, today</h2>
+      <div class="pbs" id="plats"></div>
+      <p class="hint small" id="plat-hint" hidden></p>
+    </section>
+
+    <section class="card" aria-labelledby="week-h">
+      <div class="week-h">
+        <h2 id="week-h" class="eyebrow">Last 7 days</h2>
+        <p class="small muted num" id="week-sub"></p>
+      </div>
+      <div class="chart skel" id="week"></div>
+    </section>
+
+    <section class="card pause" id="pause-card" aria-labelledby="pause-h">
+      <h2 id="pause-h" class="eyebrow">Pause tracking</h2>
+      <div class="collapse" id="pause-opts" data-open="true">
+        <div>
+          <div class="pause-btns" role="group" aria-label="Pause for">
+            <button class="btn" type="button" data-mins="15">15 min</button>
+            <button class="btn" type="button" data-mins="60">1 hour</button>
+            <button class="btn" type="button" data-mins="day">Rest of today</button>
+          </div>
+        </div>
+      </div>
+      <div class="collapse" id="pause-active" data-open="false">
+        <div>
+          <div class="pause-on">
+            <span class="pause-badge"><span data-icon="pause"></span></span>
+            <div class="pause-txt">
+              <p class="t" id="pause-t">Paused</p>
+              <p class="small muted" id="pause-sub"></p>
+            </div>
+            <button class="btn primary" id="resume" type="button">Resume</button>
+          </div>
+        </div>
+      </div>
+      <p class="sr-only" role="status" aria-live="polite" id="pause-live"></p>
+    </section>
+
+    <section class="card focus" id="focus-card" aria-labelledby="focus-h" data-tone="idle">
+      <div class="focus-top">
+        <h2 id="focus-h" class="eyebrow">Focus: block reels</h2>
+        <span class="chip focus-chip" id="focus-chip"><i class="fdot" aria-hidden="true"></i><span id="focus-chip-t">Off</span></span>
+      </div>
+      <p class="small muted focus-sub" id="focus-sub" aria-live="polite">Block reels on all four sites for a while. Each press adds time.</p>
+      <div class="pause-btns focus-btns" id="focus-btns" role="group" aria-label="Block reels for">
+        <button class="btn" type="button" data-mins="30"><span data-icon="clock"></span>30 min</button>
+        <button class="btn" type="button" data-mins="60"><span data-icon="clock"></span>1 hour</button>
+        <button class="btn" type="button" data-mins="120"><span data-icon="clock"></span>2 hours</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="small muted"><span data-icon="lock"></span>Private: stays on this device <span id="ver"></span></footer>
+  <div class="tip" id="tip" aria-hidden="true"></div>
+
+  <script src="../core.js"></script>
+  <script src="kit.js"></script>
+  <script src="charts.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

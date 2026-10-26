@@ -1,0 +1,15 @@
+# build output (zips are attached to GitHub releases instead)
+dist/
+
+# local scratch space and test profiles
+.scratch/
+
+# personal data exports from the dashboard (usage counts)
+reel-meter-*.json
+
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

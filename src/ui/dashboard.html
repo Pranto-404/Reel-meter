@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Reel Meter dashboard</title>
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body class="is-loading">
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top" id="top">
+    <div class="wrap bar">
+      <a class="brand" href="#top" aria-label="Reel Meter, back to top">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--accent-fill)"/><path d="M8 21a8 8 0 0 1 16 0" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".55"/><path d="M16 21l4.2-6.4" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="21" r="2" fill="#fff"/></svg>
+        <span>Reel Meter</span>
+      </a>
+      <nav aria-label="Sections" id="nav">
+        <a href="#overview" data-sec="overview">Overview</a>
+        <a href="#patterns" data-sec="patterns">Patterns</a>
+        <a href="#limits" data-sec="limits">Limits</a>
+        <a href="#block" data-sec="block">Block</a>
+        <a href="#privacy" data-sec="privacy">Privacy<span class="nav-more"> &amp; data</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap" id="main" tabindex="-1" aria-busy="true">
+    <section id="welcome" class="card welcome" hidden aria-labelledby="welcome-h">
+      <div class="welcome-in">
+        <button class="icon-btn welcome-x" type="button" id="welcome-x" aria-label="Dismiss welcome message"><span data-icon="x"></span></button>
+        <p class="eyebrow">Welcome</p>
+        <h2 id="welcome-h">Reel Meter is ready</h2>
+        <p class="welcome-lead">It counts the short videos you watch and how long you watch them. Everything stays on this device.</p>
+        <div class="welcome-step">
+          <span class="step-ico"><span data-icon="refresh"></span></span>
+          <div>
+            <p class="t">One step to start: refresh your open tabs</p>
+            <p class="s">Chrome only adds an extension to pages that load after it is installed. Reload any YouTube, Instagram, TikTok or Facebook tab that was already open, then open a reel. A small counter appears on it.</p>
+          </div>
+        </div>
+        <ul class="trust" aria-label="Privacy in short">
+          <li><span data-icon="lock"></span>Stays on this device</li>
+          <li><span data-icon="shield"></span>No account, no uploads</li>
+          <li><span data-icon="check"></span>Reads no titles or accounts</li>
+        </ul>
+        <div class="welcome-actions">
+          <button class="btn primary" type="button" id="welcome-ok">Got it</button>
+          <a class="btn ghost" href="#privacy" id="welcome-priv">See how privacy works</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="overview" aria-labelledby="ov-h">
+      <h2 id="ov-h" class="sr-only">Overview</h2>
+
+      <div class="card hero" id="hero" data-mode="calm">
+        <div class="hero-grid">
+          <div class="hero-main">
+            <p class="eyebrow"><span>Today</span> <span class="hero-date" id="hero-date"></span></p>
+            <p class="big"><span id="hero-reels" class="count skel">00</span></p>
+            <p class="hero-sub"><span id="hero-unit">reels</span> · <span id="hero-time" class="skel">00m</span> screen time</p>
+            <p class="hero-yday small" id="hero-yday" hidden></p>
+            <div class="hero-status" id="hero-status-wrap">
+              <p class="hero-status-t" id="hero-status"></p>
+              <p class="small muted" id="hero-limit-text"></p>
+              <p class="chip good" id="hero-streak" hidden><span data-icon="flame"></span><span id="hero-streak-t"></span></p>
+            </div>
+            <p class="hero-nolimit small muted" id="hero-nolimit">No daily limit set. <a href="#limits" class="link-btn">Set one</a> if you want a gentle target.</p>
+            <div class="paused-chip" id="hero-paused" hidden>
+              <span class="chip warn"><span data-icon="pause"></span><span id="hero-paused-t">Paused</span></span>
+              <button class="link-btn small" type="button" id="hero-resume">Resume</button>
+            </div>
+          </div>
+
+          <div class="hero-side">
+            <div class="ring" id="ring" role="img" aria-label="Share of today's limit used">
+              <svg viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="ring-track" cx="60" cy="60" r="52" />
+                <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="52" pathLength="100" transform="rotate(-90 60 60)" />
+              </svg>
+              <div class="ring-c"><b id="ring-pct" class="num">0%</b><span id="ring-cap">of limit</span></div>
+            </div>
+            <div class="hours" id="hours-wrap">
+              <p class="small muted hours-t">Today by hour</p>
+              <div class="hours-bars" id="hours" aria-hidden="true"></div>
+              <div class="hours-axis small muted" aria-hidden="true"><span>12a</span><span>6a</span><span>12p</span><span>6p</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-empty" id="hero-empty">
+          <svg class="illus" viewBox="0 0 180 150" aria-hidden="true">
+            <circle cx="90" cy="76" r="62" fill="var(--accent-tint)"/>
+            <circle cx="90" cy="76" r="62" fill="none" stroke="var(--accent-text)" stroke-opacity=".25" stroke-dasharray="3 7" stroke-linecap="round"/>
+            <g class="illus-phone">
+              <rect x="58" y="16" width="64" height="116" rx="12" fill="var(--surface)" stroke="var(--ink-2)" stroke-width="2.5"/>
+              <rect x="64" y="22" width="52" height="104" rx="8" fill="var(--h0)"/>
+              <rect x="78" y="26" width="24" height="9" rx="4.5" fill="var(--accent-fill)"/>
+              <circle cx="90" cy="76" r="14" fill="var(--surface)" stroke="var(--axis)" stroke-width="2"/>
+              <path d="M86 69.5v13l11-6.5z" fill="var(--accent-text)"/>
+              <rect x="70" y="108" width="40" height="4" rx="2" fill="var(--axis)"/>
+              <rect x="70" y="108" width="14" height="4" rx="2" fill="var(--accent-fill)"/>
+            </g>
+            <path d="M144 38l2.6 6.4 6.4 2.6-6.4 2.6-2.6 6.4-2.6-6.4-6.4-2.6 6.4-2.6z" fill="var(--series-4)"/>
+            <path d="M32 92l1.8 4.2 4.2 1.8-4.2 1.8L32 104l-1.8-4.2L26 98l4.2-1.8z" fill="var(--series-3)"/>
+            <circle cx="150" cy="104" r="4" fill="var(--series-2)"/>
+          </svg>
+          <div class="hero-empty-text">
+            <p class="eyebrow">Today</p>
+            <h3>Nothing counted yet</h3>
+            <p class="muted">Open a reel on one of these and a small counter shows up on it. Already had a tab open? <b>Refresh it first</b>, because Chrome only adds the counter to pages that load after install.</p>
+            <ul class="site-links" aria-label="Open a reel site in a new tab">
+              <li><a class="btn" href="https://www.youtube.com/shorts" target="_blank" rel="noopener noreferrer"><i class="dot" style="background:var(--series-1)"></i>YouTube Shorts</a></li>
+              <li><a class="btn" href="https://www.instagram.com/reels/" target="_blank" rel="noopener noreferrer"><i class="dot" style="background:var(--series-2)"></i>Instagram Reels</a></li>
+              <li><a class="btn" href="https://www.tiktok.com/" target="_blank" rel="noopener noreferrer"><i class="dot" style="background:var(--series-3)"></i>TikTok</a></li>
+              <li><a class="btn" href="https://www.facebook.com/reel/" target="_blank" rel="noopener noreferrer"><i class="dot" style="background:var(--series-4)"></i>Facebook Reels</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Date range" id="range-seg">
+          <button type="button" data-range="7" aria-pressed="true">7 days</button>
+          <button type="button" data-range="30" aria-pressed="false">30 days</button>
+          <button type="button" data-range="90" aria-pressed="false">90 days</button>
+        </div>
+        <div class="toolbar-r">
+          <div class="seg" role="group" aria-label="Metric" id="metric-seg">
+            <button type="button" data-metric="r" aria-pressed="true">Reels</button>
+            <button type="button" data-metric="m" aria-pressed="false">Minutes</button>
+          </div>
+          <button class="btn" type="button" id="table-toggle" aria-pressed="false"><span data-icon="table"></span>Table view</button>
+        </div>
+      </div>
+
+      <div class="tiles" id="tiles">
+        <div class="tile">
+          <span class="tile-ico"><span data-icon="play"></span></span>
+          <p class="tile-l">Reels</p>
+          <p class="v"><span class="count skel" id="t-reels">000</span></p>
+          <p class="d" id="d-reels" hidden></p>
+        </div>
+        <div class="tile">
+          <span class="tile-ico"><span data-icon="clock"></span></span>
+          <p class="tile-l">Screen time</p>
+          <p class="v"><span class="count skel" id="t-time">0h 00m</span></p>
+          <p class="d" id="d-time" hidden></p>
+        </div>
+        <div class="tile">
+          <span class="tile-ico"><span data-icon="pulse"></span></span>
+          <p class="tile-l">Daily average</p>
+          <p class="v"><span class="count skel" id="t-avg">0h 00m</span></p>
+          <p class="d" id="d-avg" hidden></p>
+        </div>
+        <div class="tile">
+          <span class="tile-ico"><span data-icon="hash"></span></span>
+          <p class="tile-l">Reels per day</p>
+          <p class="v"><span class="count skel" id="t-rpd">000</span></p>
+          <p class="d" id="d-rpd" hidden></p>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-h">
+          <h3 id="chart-title">Reels per day</h3>
+          <p class="small muted" id="chart-sub"></p>
+        </div>
+        <div class="chart skel" id="chart"></div>
+        <div id="table-wrap" hidden></div>
+        <div id="chart-empty" hidden></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h"><h3>By app</h3><p class="small muted" id="plat-sub"></p></div>
+          <div id="platforms" class="pbs"></div>
+          <div id="plat-empty" hidden></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>What stands out</h3></div>
+          <ul id="insights" class="insights"></ul>
+          <div id="ins-empty" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="patterns" aria-labelledby="pat-h">
+      <div class="sec-h">
+        <h2 id="pat-h">When you scroll</h2>
+        <p class="muted">Total time by weekday and hour over the last 90 days. A stronger colour means more time.</p>
+      </div>
+      <div class="card heat-card">
+        <p class="heat-sum" id="heat-sum" hidden><span data-icon="sparkle"></span><span id="heat-sum-t"></span></p>
+        <div class="heat-scroll" id="heat-body">
+          <div id="heat" class="heat" role="table" aria-label="Time spent by weekday and hour"></div>
+          <div class="heat-legend small muted" aria-hidden="true">
+            <span>Less</span>
+            <i style="background:var(--h0)"></i><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i><i style="background:var(--h5)"></i>
+            <span>More</span>
+          </div>
+        </div>
+        <div id="heat-empty" hidden></div>
+      </div>
+    </section>
+
+    <section id="limits" aria-labelledby="lim-h">
+      <div class="sec-h">
+        <h2 id="lim-h">Limits and nudges</h2>
+        <p class="muted">All optional and gentle. Changes save as you make them.</p>
+      </div>
+      <form id="settings" class="settings-grid" autocomplete="off">
+        <fieldset class="card set">
+          <legend class="set-h"><span class="set-ico"><span data-icon="gauge"></span></span>Daily limits</legend>
+          <p class="s set-intro">Set either, both or neither. The ring on Today follows whichever you are closest to. 0 turns a limit off.</p>
+          <div class="field">
+            <div class="txt"><label class="t" for="f-reels">Reels per day</label><span class="s" id="h-reels">Up to 5,000</span></div>
+            <div class="stepper"><button type="button" data-dir="-1" tabindex="-1" aria-label="Fewer reels per day"><span data-icon="minus"></span></button><input id="f-reels" type="number" name="dailyReelLimit" min="0" max="5000" step="1" inputmode="numeric" aria-describedby="h-reels"><span class="unit" aria-hidden="true">reels</span><button type="button" data-dir="1" tabindex="-1" aria-label="More reels per day"><span data-icon="plus"></span></button></div>
+          </div>
+          <div class="field">
+            <div class="txt"><label class="t" for="f-mins">Minutes per day</label><span class="s" id="h-mins">Screen time on reels, up to 24 hours</span></div>
+            <div class="stepper"><button type="button" data-dir="-1" tabindex="-1" aria-label="Fewer minutes per day"><span data-icon="minus"></span></button><input id="f-mins" type="number" name="dailyMinuteLimit" min="0" max="1440" step="5" inputmode="numeric" aria-describedby="h-mins"><span class="unit" aria-hidden="true">min</span><button type="button" data-dir="1" tabindex="-1" aria-label="More minutes per day"><span data-icon="plus"></span></button></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="card set">
+          <legend class="set-h"><span class="set-ico"><span data-icon="bell"></span></span>Gentle reminders</legend>
+          <div class="field">
+            <div class="txt"><label class="t" for="f-streak">Remind me every</label><span class="s" id="h-streak">Reels in a row without a break. 0 is off.</span></div>
+            <div class="stepper"><button type="button" data-dir="-1" tabindex="-1" aria-label="Fewer reels between reminders"><span data-icon="minus"></span></button><input id="f-streak" type="number" name="streakNudge" min="0" max="500" step="1" inputmode="numeric" aria-describedby="h-streak"><span class="unit" aria-hidden="true">reels</span><button type="button" data-dir="1" tabindex="-1" aria-label="More reels between reminders"><span data-icon="plus"></span></button></div>
+          </div>
+          <label class="switch-row"><span class="txt"><span class="t">Heads-up at 80%</span><span class="s">A quiet note when you are close to a limit.</span></span><span class="sw"><input type="checkbox" role="switch" name="nearLimitNudge"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t">Breathing pause at the limit</span><span class="s">A 10 second pause, then you choose to continue or leave.</span></span><span class="sw"><input type="checkbox" role="switch" name="mindfulPause"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t">Greyscale once over a limit</span><span class="s">Drains the colour from the page as a visual cue.</span></span><span class="sw"><input type="checkbox" role="switch" name="greyscaleOverLimit"><span class="sw-ui"></span></span></label>
+        </fieldset>
+
+        <fieldset class="card set">
+          <legend class="set-h"><span class="set-ico"><span data-icon="grid"></span></span>Apps to track</legend>
+          <p class="s set-intro">Turn an app off and it is not counted or timed.</p>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-1)"></i>YouTube Shorts</span></span><span class="sw"><input type="checkbox" role="switch" name="platform-youtube"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-2)"></i>Instagram Reels</span></span><span class="sw"><input type="checkbox" role="switch" name="platform-instagram"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-3)"></i>TikTok</span></span><span class="sw"><input type="checkbox" role="switch" name="platform-tiktok"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-4)"></i>Facebook Reels</span></span><span class="sw"><input type="checkbox" role="switch" name="platform-facebook"><span class="sw-ui"></span></span></label>
+        </fieldset>
+
+        <fieldset class="card set">
+          <legend class="set-h"><span class="set-ico"><span data-icon="sliders"></span></span>Counting rules</legend>
+          <p class="s set-intro">The defaults suit most people.</p>
+          <div class="field">
+            <div class="txt"><label class="t" for="f-dwell">A reel counts after</label><span class="s" id="h-dwell">Seconds of playing, 1 to 10. Looping counts once.</span></div>
+            <div class="stepper"><button type="button" data-dir="-1" tabindex="-1" aria-label="Shorter"><span data-icon="minus"></span></button><input id="f-dwell" type="number" name="minDwellSec" min="1" max="10" step="1" inputmode="numeric" aria-describedby="h-dwell"><span class="unit" aria-hidden="true">sec</span><button type="button" data-dir="1" tabindex="-1" aria-label="Longer"><span data-icon="plus"></span></button></div>
+          </div>
+          <div class="field">
+            <div class="txt"><label class="t" for="f-idle">Stop timing after</label><span class="s" id="h-idle">Without touching the page, 30 to 600 seconds.</span></div>
+            <div class="stepper"><button type="button" data-dir="-1" tabindex="-1" aria-label="Shorter"><span data-icon="minus"></span></button><input id="f-idle" type="number" name="idleCutoffSec" min="30" max="600" step="10" inputmode="numeric" aria-describedby="h-idle"><span class="unit" aria-hidden="true">sec</span><button type="button" data-dir="1" tabindex="-1" aria-label="Longer"><span data-icon="plus"></span></button></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="card set span-2">
+          <legend class="set-h"><span class="set-ico"><span data-icon="pin"></span></span>On the page</legend>
+          <div class="onpage">
+            <div class="onpage-l">
+              <label class="switch-row"><span class="txt"><span class="t">Show the live counter</span><span class="s">A small "37 reels · 24m" on the reel page. Tap it for details, drag it out of the way for now.</span></span><span class="sw"><input type="checkbox" role="switch" name="showCounter"><span class="sw-ui"></span></span></label>
+              <label class="switch-row"><span class="txt"><span class="t">Count on the toolbar icon</span><span class="s">Today's reels as a badge on the extension icon.</span></span><span class="sw"><input type="checkbox" role="switch" name="showBadge"><span class="sw-ui"></span></span></label>
+            </div>
+            <div class="onpage-r" id="picker">
+              <p class="t" id="pos-h">Counter position</p>
+              <div class="mock" role="radiogroup" aria-labelledby="pos-h">
+                <div class="mock-bar" aria-hidden="true"></div>
+                <div class="mock-reel" aria-hidden="true"></div>
+                <label class="pos pos-top-left" data-label="Top left"><input type="radio" name="counterCorner" value="top-left"><span class="pos-pill"></span><span class="sr-only">Top left</span></label>
+                <label class="pos pos-top-center" data-label="Top centre of screen"><input type="radio" name="counterCorner" value="top-center"><span class="pos-pill"></span><span class="sr-only">Top centre of screen</span></label>
+                <label class="pos pos-top-right" data-label="Top right"><input type="radio" name="counterCorner" value="top-right"><span class="pos-pill"></span><span class="sr-only">Top right</span></label>
+                <label class="pos pos-video-top" data-label="On the reel (island, top centre)"><input type="radio" name="counterCorner" value="video-top"><span class="pos-pill"></span><span class="sr-only">On the reel, island at the top centre</span></label>
+                <label class="pos pos-middle-right" data-label="Right side, middle of screen"><input type="radio" name="counterCorner" value="middle-right"><span class="pos-pill"></span><span class="sr-only">Right side, middle of screen</span></label>
+                <label class="pos pos-bottom-left" data-label="Bottom left"><input type="radio" name="counterCorner" value="bottom-left"><span class="pos-pill"></span><span class="sr-only">Bottom left</span></label>
+                <label class="pos pos-bottom-right" data-label="Bottom right"><input type="radio" name="counterCorner" value="bottom-right"><span class="pos-pill"></span><span class="sr-only">Bottom right</span></label>
+              </div>
+              <p class="pos-cap small" id="pos-cap" aria-live="polite"></p>
+              <div class="pos-reset">
+                <p class="small muted" id="pos-hint">You can also drag the counter out of the way on the page. It stays there until you refresh the page, and double-clicking it puts it back.</p>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+      </form>
+    </section>
+
+    <section id="block" aria-labelledby="blk-h">
+      <div class="sec-h">
+        <h2 id="blk-h">Block reels</h2>
+        <p class="muted">Turn Reel Meter from a counter into a blocker. A blocked reel page is replaced by a calm screen. Getting past it takes a wait and typing a sentence, and unblocking too often locks that app for hours.</p>
+      </div>
+
+      <div class="card blk-status" id="blk-status" role="status" aria-live="polite" data-tone="off">
+        <span class="blk-ico" id="blk-ico" aria-hidden="true">
+          <span class="bi bi-off" data-icon="shield"></span>
+          <span class="bi bi-on" data-icon="lock"></span>
+          <span class="bi bi-break" data-icon="pause"></span>
+          <span class="bi bi-lock" data-icon="lock"></span>
+        </span>
+        <div class="txt"><p class="t" id="blk-t">Not blocking right now</p><p class="s" id="blk-s">Pick an app, a schedule or a focus timer below.</p></div>
+        <span class="blk-time" id="blk-time" hidden></span>
+      </div>
+      <ul class="blk-apps" id="blk-apps" aria-label="State of each app"></ul>
+
+      <form id="blk-form" class="settings-grid" autocomplete="off">
+        <fieldset class="card set span-2">
+          <legend class="set-h"><span class="set-ico"><span data-icon="shield"></span></span>How strict should it be?</legend>
+          <p class="s set-intro">Pick how hard it is to get past a block. Unblocking too often locks that app for hours, so choose a level you can live with. A slip is fine: the lock only appears after repeated unblocking.</p>
+          <div class="levels" id="blk-levels" role="radiogroup" aria-label="Restriction level"></div>
+        </fieldset>
+
+        <fieldset class="card set">
+          <legend class="set-h"><span class="set-ico"><span data-icon="lock"></span></span>Block by app</legend>
+          <p class="s set-intro">A blocked app stays blocked all the time. Only its reel pages are blocked; the rest of the site works as usual.</p>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-1)"></i>YouTube Shorts</span></span><span class="sw"><input type="checkbox" role="switch" name="blk-app-youtube"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-2)"></i>Instagram Reels</span></span><span class="sw"><input type="checkbox" role="switch" name="blk-app-instagram"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-3)"></i>TikTok</span><span class="s">Its main feed is all reels, so the feed is blocked.</span></span><span class="sw"><input type="checkbox" role="switch" name="blk-app-tiktok"><span class="sw-ui"></span></span></label>
+          <label class="switch-row"><span class="txt"><span class="t"><i class="dot" style="background:var(--series-4)"></i>Facebook Reels</span></span><span class="sw"><input type="checkbox" role="switch" name="blk-app-facebook"><span class="sw-ui"></span></span></label>
+        </fieldset>
+
+        <fieldset class="card set">
+          <legend class="set-h"><span class="set-ico"><span data-icon="gauge"></span></span>Limit and Shorts</legend>
+          <label class="switch-row"><span class="txt"><span class="t">Block once I reach my daily limit</span><span class="s">Instead of the breathing pause, reels stay blocked until midnight.</span></span><span class="sw"><input type="checkbox" role="switch" name="blk-hardLimit"><span class="sw-ui"></span></span></label>
+          <p class="s blk-hint" id="blk-limit-hint" hidden>You have no daily limit yet. <a href="#limits" class="link-btn">Set one</a> and this switch takes effect.</p>
+          <label class="switch-row"><span class="txt"><span class="t">Open YouTube Shorts as normal videos</span><span class="s">A shared Short opens as an ordinary video page, without the swipe feed.</span></span><span class="sw"><input type="checkbox" role="switch" name="blk-shortsAsVideos"><span class="sw-ui"></span></span></label>
+        </fieldset>
+
+        <fieldset class="card set" id="blk-focus-card" data-running="false">
+          <legend class="set-h"><span class="set-ico"><span data-icon="clock"></span></span>Focus timer</legend>
+          <p class="s set-intro" id="blk-focus-s">Block reels for a set time on the apps you choose. Each press adds time.</p>
+          <div class="focus-apps" id="blk-focus-apps" role="group" aria-label="Apps for the focus timer"></div>
+          <div class="blk-btns" id="blk-focus-btns" role="group" aria-label="Block reels for">
+            <button class="btn" type="button" data-mins="30"><span data-icon="clock"></span>30 min</button>
+            <button class="btn" type="button" data-mins="60"><span data-icon="clock"></span>1 hour</button>
+            <button class="btn" type="button" data-mins="120"><span data-icon="clock"></span>2 hours</button>
+            <button class="btn" type="button" data-mins="240"><span data-icon="clock"></span>4 hours</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="card set">
+          <legend class="set-h"><span class="set-ico"><span data-icon="calendar"></span></span>Schedules</legend>
+          <p class="s set-intro">Block at the same hours every week. Overnight times such as 22:00 to 07:00 work, and belong to the day they start on.</p>
+          <div class="sched-list" id="blk-sched"></div>
+          <button class="btn" type="button" id="blk-add"><span data-icon="plus"></span>Add a schedule</button>
+        </fieldset>
+      </form>
+
+      <p class="small muted blk-note" id="blk-note"><span data-icon="info"></span><span>While a block is running, turning it off, shortening it or raising a hard limit needs the same wait-and-type challenge (Full restriction does not allow it at all, and nothing can be loosened during a lockout). Making a block stronger never needs it. Anyone can still turn the extension off in the browser, so this is for self-control, not parental control.</span></p>
+    </section>
+
+    <section id="privacy" aria-labelledby="priv-h">
+      <div class="sec-h">
+        <h2 id="priv-h">Privacy and your data</h2>
+        <p class="muted">What Reel Meter does, what it cannot do, and how to check for yourself.</p>
+      </div>
+      <div class="card privacy">
+        <div class="cols">
+          <div>
+            <h3 class="ph"><span class="ph-ico ok"><span data-icon="check"></span></span>What Reel Meter sees</h3>
+            <ul class="plist">
+              <li>Which site you are on and whether it is a short-video page</li>
+              <li>Whether a video is playing and on screen</li>
+              <li>Whether you touched the page recently, so it stops timing when you walk away</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="ph"><span class="ph-ico no"><span data-icon="x"></span></span>What it never touches</h3>
+            <ul class="plist">
+              <li>Your screen, screenshots or camera</li>
+              <li>Video titles, channels, accounts, comments or messages</li>
+              <li>Your browsing history or any other site</li>
+              <li>The internet: it sends nothing anywhere</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <h3 class="ph"><span class="ph-ico"><span data-icon="shield"></span></span>Verify it yourself</h3>
+          <ul id="perms" class="perms plist"></ul>
+          <p class="small muted perms-note">Pages of this extension are also blocked from making any network request by their security policy (<code>connect-src 'none'</code>).</p>
+        </div>
+      </div>
+
+      <div class="card data-card">
+        <div class="card-h"><h3>Your data</h3><p class="small muted">Daily totals only. Individual reels are never recorded, and days older than 400 are removed.</p></div>
+        <div class="stored" id="stored">
+          <div class="stat"><span class="small muted">Days stored</span><b id="s-days" class="num">0</b></div>
+          <div class="stat"><span class="small muted">Oldest day</span><b id="s-oldest" class="num">none</b></div>
+          <div class="stat"><span class="small muted">Size on disk</span><b id="s-size" class="num">0 bytes</b></div>
+        </div>
+        <div class="row">
+          <button class="btn" type="button" id="export-json"><span data-icon="download"></span>Export JSON</button>
+          <button class="btn" type="button" id="export-csv"><span data-icon="download"></span>Export CSV</button>
+          <span class="grow"></span>
+          <button class="btn danger" type="button" id="delete-all"><span data-icon="trash"></span>Delete all my data</button>
+        </div>
+      </div>
+    </section>
+    <footer class="foot small muted">Reel Meter keeps daily totals on this device and nothing else. <span id="ver"></span></footer>
+  </main>
+
+  <dialog id="confirm" aria-labelledby="confirm-t" aria-describedby="confirm-d">
+    <form method="dialog" class="dlg">
+      <span class="dlg-ico"><span data-icon="trash"></span></span>
+      <h3 id="confirm-t">Delete all your counts?</h3>
+      <p id="confirm-d" class="muted"></p>
+      <p class="dlg-keep small"><span data-icon="check"></span>Your settings are kept. You will have a few seconds to undo.</p>
+      <div class="dlg-actions">
+        <button class="btn" type="submit" value="cancel" id="confirm-cancel" autofocus>Cancel</button>
+        <button class="btn danger-fill" type="submit" value="delete">Delete counts</button>
+      </div>
+      <button class="link-btn small dlg-export" type="button" id="confirm-export">Export a backup first</button>
+    </form>
+  </dialog>
+
+  <dialog id="unlock" aria-labelledby="unlock-t" aria-describedby="unlock-d">
+    <form method="dialog" class="dlg" id="unlock-form">
+      <span class="dlg-ico warn"><span data-icon="lock"></span></span>
+      <h3 id="unlock-t">That would weaken your block</h3>
+      <p id="unlock-d" class="muted">Take a moment. When the ring is full, type the sentence and your change is applied. You can also keep your block as it is.</p>
+      <div class="uwait" id="unlock-box">
+        <div class="uring" aria-hidden="true">
+          <svg class="u-svg" viewBox="0 0 92 92" focusable="false"><circle class="u-trk" cx="46" cy="46" r="40"/><circle class="u-prg" id="unlock-prg" cx="46" cy="46" r="40"/></svg>
+          <div class="u-mid"><b id="unlock-n">0</b><span>sec</span></div>
+          <svg class="u-ck" viewBox="0 0 24 24" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </div>
+        <p class="uwait-t" id="unlock-wait"></p>
+      </div>
+      <p class="blk-sentence" id="unlock-sentence"></p>
+      <div class="u-inwrap">
+        <input id="unlock-input" type="text" autocomplete="off" spellcheck="false" aria-label="Type the sentence to unlock" placeholder="Type it here when the ring is full" disabled>
+        <span class="u-tick" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      </div>
+      <div class="u-prog" aria-hidden="true"><i id="unlock-prog"></i></div>
+      <p class="small muted u-hint" id="unlock-hint" aria-live="polite"></p>
+      <div class="dlg-actions">
+        <button class="btn" type="button" id="unlock-cancel">Keep my block</button>
+        <button class="btn primary" type="button" id="unlock-go" disabled>Unblock and apply</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <div class="tip" id="tip" aria-hidden="true"></div>
+
+  <script src="../core.js"></script>
+  <script src="kit.js"></script>
+  <script src="charts.js"></script>
+  <script src="dashboard.js"></script>
+  <script src="blockpanel.js"></script>
+</body>
+</html>

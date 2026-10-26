@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reel-meter-packages
+          path: dist/*.zip
+
+  harness:
+    name: Real-code browser harness
+    runs-on: ubuntu-latest
+    # Runs the real content script and worker against a fake page in headless Chrome (about 90 seconds).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run harness
+        env:
+          CHROME: /usr/bin/google-chrome
+          HARNESS_NO_SANDBOX: '1'
