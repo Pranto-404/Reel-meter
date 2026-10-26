@@ -40,6 +40,7 @@ jobs:
           npm run harness 2>&1 | tee harness.log
           code=${PIPESTATUS[0]}
           { echo '```'; tail -60 harness.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          tail -12 harness.log | while IFS= read -r line; do echo "::warning::${line:0:300}"; done
           exit $code
         env:
           CHROME: /usr/bin/google-chrome
