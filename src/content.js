@@ -352,8 +352,9 @@
     .isl.bump { animation: bump .45s cubic-bezier(.2,.9,.25,1.25); }
 
     .bar { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; width: max-content; margin: 0 auto; }
-    /* a very narrow window (or a wide fallback font): tighter spacing so everything, including Resume, stays inside the island */
-    @media (max-width: 260px) { .bar { gap: 5px; padding: 0 10px; } .resume { padding: 3px 9px; } }
+    /* a very narrow window (set by place()): tighter spacing so everything, including Resume, stays inside the island */
+    .isl.narrow .bar { gap: 5px; padding: 0 10px; }
+    .isl.narrow .resume { padding: 3px 9px; }
     /* live indicator: three bars that dance while a reel is being counted, sit still when idle */
     .eq { display: flex; align-items: center; gap: 2px; height: 14px; flex: none; }
     .eq i { display: block; width: 3px; height: 4px; border-radius: 2px; background: #6b6b66; transition: background .3s; }
@@ -917,6 +918,7 @@
      */
     function place(el) {
       const { w: vw, h: vh } = viewport();
+      el.classList.toggle('narrow', vw <= 260);
       const w = targetWidth();
       let x = vw / 2;
       let y = 10;
