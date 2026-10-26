@@ -104,6 +104,10 @@ Reload in Chrome: chrome://extensions -> reload arrow, then open a NEW reel tab.
 
 Owner said Android is the main focus, extension first (done enough to continue). Plan agreed in chat: Kotlin + Compose; time per app from UsageStats (usage access permission); reel counting via an AccessibilityService reading only package and view ids (never text), overlay island via accessibility overlay (no draw-over-apps permission), no INTERNET permission, local Room DB, port `core.js` logic with shared test vectors; spike first on the owner's phone to find view ids; OEM battery-killer guidance. Open questions still unanswered by the owner: own phone only vs Play Store (Play restricts accessibility use), phone brand/Android version, which apps (TikTok availability?). Machine has NO JDK/Android SDK installed (checked). iPhone cannot count reels inside other apps.
 
+## 9b. GitHub (set up 2026-10-27)
+
+Repo: https://github.com/Pranto-404/Reel-meter (public, MIT). Commits are authored by the owner only (no co-author trailers: owner asked). CI (.github/workflows/ci.yml): unit tests+build and the real-code harness on every push/PR; both must pass. Ruleset "Protect main": no deletion, no force push, required check "Unit tests and build"; repo admin can bypass. Release: bump version in manifest.json + package.json, update CHANGELOG.md, push, then `git tag -a vX.Y.Z -m ...` and `git push origin vX.Y.Z`; release.yml builds the zips and creates the GitHub release (v1.2.4 published). gh CLI is not installed; the GitHub API is rate-limited when anonymous, so read run results through the signed-in Edge (Claude-in-Chrome) instead. Dependabot opened PRs #1-#3 (actions v7), unmerged.
+
 ## 10. Ordered TODO
 
 1. DONE (2026-10-26): security fixes 1-15, tests, harness (180 checks), docs, 1.2.0 build, screenshots, .scratch deleted.
