@@ -26,7 +26,6 @@ jobs:
 
   harness:
     name: Real-code browser harness
-    continue-on-error: true # informational until it has proven stable on GitHub's machines
     runs-on: ubuntu-latest
     # Runs the real content script and worker against a fake page in headless Chrome (about 90 seconds).
     steps:
@@ -40,7 +39,6 @@ jobs:
           npm run harness 2>&1 | tee harness.log
           code=${PIPESTATUS[0]}
           { echo '```'; tail -60 harness.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          tail -12 harness.log | while IFS= read -r line; do echo "::warning::${line:0:300}"; done
           exit $code
         env:
           CHROME: /usr/bin/google-chrome
