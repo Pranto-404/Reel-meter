@@ -3,6 +3,10 @@
 All notable changes to Reel Meter. Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.4] - 2026-10-27
+### Fixed
+- In a very narrow window, or with a wider system font, the paused counter let the Resume button stick out past its edge. Spacing is now tighter on narrow windows.
+
 ## [1.2.3] - 2026-10-27
 ### Added
 - The background worker logs each unblock request and its answer to its own console, to make support easier.
@@ -48,6 +52,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 - Counts Shorts, Reels and TikToks and the time spent on them, on-device only. Counter island, popup and dashboard.
 
+[1.2.4]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.2.3
 [1.2.2]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.2.2
 [1.2.1]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.2.1

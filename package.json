@@ -1,6 +1,6 @@
 {
   "name": "reel-meter",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "private": true,
   "description": "Browser extension that counts short videos and the time spent on them, entirely on-device.",
   "license": "MIT",
