@@ -19,7 +19,7 @@ jobs:
           node-version: 22
       - run: npm test
       - run: npm run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: reel-meter-packages
           path: dist/*.zip
