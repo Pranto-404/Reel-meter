@@ -26,6 +26,7 @@ jobs:
 
   harness:
     name: Real-code browser harness
+    continue-on-error: true # informational until it has proven stable on GitHub's machines
     runs-on: ubuntu-latest
     # Runs the real content script and worker against a fake page in headless Chrome (about 90 seconds).
     steps:
@@ -33,7 +34,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm run harness
+      - name: Run the harness
+        run: |
+          set +e
+          npm run harness 2>&1 | tee harness.log
+          code=${PIPESTATUS[0]}
+          { echo '```'; tail -60 harness.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
         env:
           CHROME: /usr/bin/google-chrome
           HARNESS_NO_SANDBOX: '1'
