@@ -1,46 +1,75 @@
+<div align="center">
+
+<img src="icons/icon128.png" alt="Reel Meter icon" width="96" height="96">
+
 # Reel Meter
 
-A browser extension that counts the short videos you watch (YouTube Shorts, Instagram Reels, TikTok, Facebook Reels) and the time you spend on them.
+**Count your Shorts, Reels and TikToks. Block them when you want your time back.**
+Private by design: everything stays on your device.
 
-**Private by design.** It keeps daily totals on your device and nothing else. It never reads your screen, video titles, accounts or comments, and it has no way to send data anywhere.
+[![CI](https://github.com/Pranto-404/Reel-meter/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranto-404/Reel-meter/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Pranto-404/Reel-meter?label=release)](https://github.com/Pranto-404/Reel-meter/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285f4)
+![No network requests](https://img.shields.io/badge/network%20requests-none-2ea44f)
+![Dependencies](https://img.shields.io/badge/dependencies-0-2ea44f)
 
-## Install (Chrome, Edge, Brave)
+[Install](#install) · [Features](#features) · [Blocking levels](#blocking-levels) · [Privacy](#privacy-you-can-verify) · [Develop](#develop) · [Roadmap](#roadmap)
 
-1. Open `chrome://extensions` (Edge: `edge://extensions`).
-2. Turn on **Developer mode**.
-3. Click **Load unpacked** and pick this folder (`D:\reel app`).
-4. The dashboard opens with a short privacy note. Pin the icon from the puzzle menu to see today's count on the toolbar.
-5. **Refresh any YouTube / Instagram / TikTok / Facebook tab that was already open.** Chrome only adds an extension to pages that load after it is installed.
-6. After you change the code, click the reload arrow on the extension's card in `chrome://extensions`, then refresh the reel tab.
+</div>
 
-If no counter appears on a reel page, see "Troubleshooting" below.
+<p align="center">
+  <img src="store/screenshots/3-block-screen.png" alt="The block screen: a calm full-page stop with a wait and a typed sentence before a 5 minute break" width="860">
+</p>
 
-Firefox: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on** and pick `manifest.json`.
+## Why
 
-## What you get
+Short videos are built to be hard to stop. Reel Meter gives you honest numbers first, then gentle friction: a live counter, daily limits, and an optional blocker that makes you pause, wait and type a sentence before you continue. It works on **YouTube Shorts, Instagram Reels, TikTok and Facebook Reels** in Chrome, Edge, Brave and Firefox.
 
-- **Live counter** on the page ("37 reels · 24m"). Tap it for details (pause 15 minutes, resume, dashboard, hide). It always starts at the top middle of the reel; you can drag it out of the way for the current page view, and double-click puts it back.
-- **Toolbar badge** with today's reel count.
-- **Popup**: today, by app, last 7 days, pause tracking (15 min, 1 hour, rest of today).
-- **Dashboard**: 7/30/90 day charts (reels or minutes), a table view, by-app split, a weekday-by-hour pattern map, plain-language observations, weekly comparison.
-- **Limits and nudges** (all optional, all gentle):
-  - daily limit in reels and/or minutes
-  - heads-up at 80% of a limit
-  - reminder every N reels in a row (default 25)
-  - a 10 second breathing pause when you reach a limit, then you choose to continue or leave
-  - optional greyscale once you are over a limit
-- **Block reels (optional)**: block per app, a focus timer (for the app you are on, or chosen apps), schedules, a hard daily limit, and YouTube Shorts opened as normal videos. A blocked reel page is replaced by a block screen. Getting past it takes a wait and typing a sentence, and opens a 5 minute break for that app only; the counter then offers "Block now". Everything is per app. Three levels (Less restriction, Restricted, Full restriction) set the wait, the sentence and the lockout: on Restricted, 3 unblocks within 3 hours lock that app for 6 hours. Loosening a running block needs the same challenge, which the background worker checks with its own clock (not allowed on Full restriction, nor during a lockout). With a hard daily limit on, pausing and switching an app off do not stop the count.
-- **Your data**: export your counts as JSON or CSV, delete the counts in one click. Settings and the blocker's running state stay until you uninstall; while a hard daily limit is on, today's count is kept.
+It never reads your screen, video titles, accounts or comments, and it has no way to send data anywhere.
 
-## Troubleshooting
+## Install
 
-| Symptom | Fix |
+**From a release (recommended)**
+
+1. Download the zip for your browser from the [latest release](https://github.com/Pranto-404/Reel-meter/releases/latest): `…-chrome-edge.zip` for Chrome, Edge, Brave and Opera, or `…-firefox.zip` for Firefox.
+2. Unzip it somewhere permanent.
+3. Chrome / Edge / Brave: open `chrome://extensions` (Edge: `edge://extensions`), turn on **Developer mode**, click **Load unpacked** and pick the unzipped folder.
+   Firefox: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on** and pick `manifest.json`.
+4. Refresh any YouTube, Instagram, TikTok or Facebook tab that was already open.
+
+**From source:** clone this repository and load the folder the same way. There is no build step.
+
+## Features
+
+| | |
 |---|---|
-| No counter on a reel page | Refresh the tab (F5). Then check the extension is on at `chrome://extensions` and that the site is one of the four supported. |
-| Counter is there but you cannot see it | It sits at the top centre of the reel. Change **Counter position** in the dashboard (for example "Right side, middle of screen"), or drag it. Tap it and press **Hide** to remove it until the page reloads. |
-| Counter says Paused | You paused tracking. Press **Resume** on the counter itself, or in the popup. |
-| Count stays at 0 | A reel counts after 2 seconds of playing and only while the video is playing and the tab is visible. Check the app is ticked under "Apps to track". |
-| Still wrong | Right-click the page, Inspect, Console tab, and look for red lines mentioning Reel Meter. `chrome://extensions` > Reel Meter > Errors also shows them. |
+| **Live counter** | A small "island" at the top of the reel: reels and minutes today. Tap it for details, pause, resume or open the dashboard. |
+| **Dashboard** | 7/30/90 day charts, per-app split, a weekday-by-hour pattern map, plain-language observations, weekly comparison. |
+| **Limits and nudges** | Daily limit in reels and/or minutes, a heads-up at 80%, a reminder every N reels, a breathing pause when you hit the limit, optional greyscale. |
+| **Reel blocker** | Block per app, focus timers, schedules, a hard daily limit, and Shorts opened as normal videos. |
+| **Your data** | Export counts as JSON or CSV. Delete them in one click. |
+
+<p align="center">
+  <img src="store/screenshots/1-overview.png" alt="Dashboard overview" width="420">
+  <img src="store/screenshots/2-island-open.png" alt="The counter island opened on a reel page" width="420">
+</p>
+<p align="center">
+  <img src="store/screenshots/4-block-settings.png" alt="Blocking settings with the three restriction levels" width="420">
+  <img src="store/screenshots/5-popup.png" alt="Toolbar popup" width="300">
+</p>
+
+## Blocking levels
+
+Blocking is **per app**: unblocking Facebook never unblocks YouTube. A blocked reel page is replaced by a block screen. Getting past it takes a wait and typing a sentence, and opens a **5 minute break** for that app only; the counter then offers *Block now*.
+
+| Level | Wait | Unblocks before a lockout | Lockout | Notes |
+|---|---|---|---|---|
+| Less restriction | 10 s | 5 in 60 min | 1 hour | Gentle nudge |
+| **Restricted** (default) | 30 s | 3 in 3 hours | 6 hours | Counted from when the third break ends |
+| Full restriction | 60 s | 2 in 24 hours | 12 hours | Timed blocks (focus, schedule, limit) cannot be unblocked; loosening is never allowed |
+
+Loosening a running block needs the same challenge, checked by the background worker with its own clock (not allowed on Full restriction or during a lockout). With a hard daily limit on, pausing and switching an app off do not stop the count.
 
 ## How counting works
 
@@ -53,9 +82,7 @@ Firefox: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Ad
 | YouTube, Instagram, Facebook | the reel is told apart by the page address changing |
 | TikTok For You feed | the address never changes, so the video on screen is used instead |
 
-## What is stored
-
-Per day: reels and seconds in total and per app, plus seconds per hour of the day. No video ids, titles, URLs or timestamps of single reels. Days older than 400 are removed.
+Stored per day: reels and seconds in total and per app, plus seconds per hour of the day. No video ids, titles, URLs or timestamps of single reels. Days older than 400 are removed.
 
 ## Privacy you can verify
 
@@ -63,43 +90,59 @@ Per day: reels and seconds in total and per app, plus seconds per hour of the da
 - It runs only on the four sites listed in `manifest.json`.
 - Extension pages carry a strict security policy (`default-src 'none'`, scripts only from the extension itself, `connect-src 'none'`, no frames, no forms). `npm run harness` loads the dashboard and the popup under that exact policy and fails on any violation.
 - `npm test` fails if the permissions grow, if any source file uses `fetch`, `XMLHttpRequest`, `WebSocket`, screen capture or similar, or if the message the page script sends ever carries more than platform, seconds and reels.
-
-## Project layout
-
-```
-manifest.json          extension manifest (Manifest V3)
-src/core.js            all logic: URL rules, tracker, stats, limits, nudges (no browser APIs)
-src/content.js         runs on the four sites: observes, shows counter, toast, pause overlay
-src/background.js      saves totals, badge, decides nudges
-src/ui/                popup and dashboard
-icons/                 generated by scripts/make-icons.js
-test/                  42+ unit tests and static privacy checks (node:test, no dependencies)
-dev/                   preview tools: fake-chrome harnesses for the UI and for end-to-end checks
-```
+- Full policy: [store/PRIVACY.md](store/PRIVACY.md).
 
 ## Develop
 
-```
-npm test                      # unit tests and static checks
-node dev/serve.js             # then open:
-  http://127.0.0.1:5178/dev/harness.html?page=dashboard    (or page=popup, empty=1)
-  http://127.0.0.1:5178/dev/content-harness.html           (runs the real content + background scripts
-                                                            against a fake page and a compressed clock)
+No dependencies and no build step: plain JavaScript loaded straight from the folder.
+
+```bash
+npm test          # unit tests and static privacy checks (about 2 s)
+npm run harness   # the real content script + worker against a fake page in headless Chrome (about 90 s)
+npm run build     # store-ready zips in dist/
+npm run shots     # regenerate the store screenshots
 ```
 
-## Releasing
+```
+manifest.json     Manifest V3 manifest
+src/core.js       all pure logic: URL rules, tracker, stats, limits, blocking rules (no browser APIs)
+src/content.js    runs on the four sites: counter island, toasts, pause overlay, block screen
+src/background.js service worker: saves totals, badge, validates every unblock
+src/ui/           popup, dashboard, block settings panel
+test/             unit tests and static privacy checks (node:test)
+dev/              fake-chrome harnesses and preview tools
+store/            listing text, privacy policy, screenshots, promo image
+docs/             architecture, publishing guide, design notes
+```
 
-`npm run build` makes store-ready packages in `dist/` (one for Chrome, Edge and Opera, one for Firefox). `store/` holds the listing text, the privacy policy and the store images (`npm run shots` remakes them). `PUBLISHING.md` is the step-by-step guide for each store.
+More: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/PUBLISHING.md](docs/PUBLISHING.md) · [CHANGELOG.md](CHANGELOG.md)
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| No counter on a reel page | Refresh the tab (F5). Check the extension is on and the site is one of the four supported. |
+| Counter is there but you cannot see it | It sits at the top centre of the reel. Change **Counter position** in the dashboard, or drag it. |
+| Count stays at 0 | A reel counts after 2 seconds of playing, only while the video plays and the tab is visible. Check the app is ticked under "Apps to track". |
+| "I need to continue" shows "Something went wrong (…)" | Remove the extension and **Load unpacked** again. Browsers can keep a stuck copy of an unpacked extension after many reloads. |
+| Still wrong | Right-click the page, Inspect, Console, and look for red lines mentioning Reel Meter. The extension's card also has an **Errors** button. |
 
 ## Known limits
 
-- Site pages change. If a site changes how its reel pages are addressed, counting for that site stops until `classify()` in `src/core.js` is updated (it is one small function with tests).
+- Sites change. If a site changes how its reel pages are addressed, counting for it stops until `classify()` in `src/core.js` is updated (one small function with tests).
+- Not covered: reels inside iframes, Instagram `/p/` posts, Facebook `/watch`, TikTok `/explore`.
 - No cross-device totals: each browser keeps its own numbers.
-- Ignoring "educational" channels is deliberately not offered: it would require reading channel names from the page. You can turn a whole app off instead.
-- Not yet run on the live sites inside a real browser with the extension installed. It has been tested end to end against a simulated page (see `dev/content-harness.html`), so the first real-world check is worth doing on each site.
+- Turning the extension off or using DevTools bypasses any block. It is a habit tool, not parental control.
+
+## Roadmap
+
+- [x] Counter, dashboard, limits and nudges
+- [x] Reel blocker with per-app breaks, three restriction levels and lockouts
+- [ ] Store listings (Chrome Web Store, Edge Add-ons, Firefox Add-ons)
+- [ ] Android app (screen time per app with the same privacy rules)
 
 ## Contributing, security and license
 
-- How to run, test and release: [CONTRIBUTING.md](CONTRIBUTING.md). Design notes: [docs/HANDOFF.md](docs/HANDOFF.md). History: [CHANGELOG.md](CHANGELOG.md).
-- Report a security problem privately: [SECURITY.md](SECURITY.md).
-- Licensed under the [MIT License](LICENSE).
+[CONTRIBUTING.md](CONTRIBUTING.md) · report security problems privately via [SECURITY.md](SECURITY.md) · released under the [MIT License](LICENSE).
+
+Reel Meter is not affiliated with, endorsed by, or sponsored by YouTube, Google, Instagram, Facebook, Meta or TikTok.

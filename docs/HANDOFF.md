@@ -28,7 +28,7 @@ test/                    core.test.js, block.test.js (27), package.test.js, rele
 dev/                     harness.html (fake-chrome UI preview), content-harness.html (real scripts + fake page + compressed clock),
                          run-harness.js (headless runner), serve.js (static server), shots.js (store screenshots via CDP)
 store/                   LISTING.md, PRIVACY.md, screenshots/ (5 + spare/), promo/
-PUBLISHING.md            how to publish to Chrome, Edge, Firefox, Opera, Safari
+docs/PUBLISHING.md       how to publish to Chrome, Edge, Firefox, Opera, Safari
 README.md                features, install, troubleshooting
 HANDOFF.md               this file
 .scratch/                my leftover scratch scripts (newblock.js, apply-*.js, sectionM.js, outer.js, blockui.js, harness-inline.js): DELETE
@@ -113,4 +113,4 @@ Repo: https://github.com/Pranto-404/Reel-meter (public, MIT). Commits are author
 1. DONE (2026-10-26): security fixes 1-15, tests, harness (180 checks), docs, 1.2.0 build, screenshots, .scratch deleted.
 2. Owner: reload the extension in Chrome AND Edge (each separately) and test: two apps blocked at once (unblock one, other stays blocked), Block now, per-app Focus, 3 unblocks -> 6 h lock on Restricted, levels in the dashboard.
 3. Real-browser testing trick: headless Edge + `Extensions.loadUnpacked` over `--remote-debugging-pipe` (see section 8 quirks) lets you attach to the service worker, run code in the content-script world (Runtime.executionContextCreated, isolated) and send the real messages. This found the 1.2.1 bug that the fake-page harness could not.
-4. Publishing (owner creates accounts, fills placeholders; see PUBLISHING.md) and/or start the Android work (questions in section 9 still open).
+4. Publishing (owner creates accounts, fills placeholders; see docs/PUBLISHING.md) and/or start the Android work (questions in section 9 still open).

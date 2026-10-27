@@ -94,5 +94,5 @@ test('store images have the exact sizes the stores ask for', () => {
 test('privacy policy and publishing guide exist and name the real permissions', () => {
   const policy = fs.readFileSync(path.join(root, 'store', 'PRIVACY.md'), 'utf8');
   for (const p of manifest.permissions) assert.ok(policy.includes('`' + p + '`'), 'policy does not explain permission ' + p);
-  assert.ok(fs.existsSync(path.join(root, 'PUBLISHING.md')));
+  assert.ok(fs.existsSync(path.join(root, 'docs', 'PUBLISHING.md')));
 });
