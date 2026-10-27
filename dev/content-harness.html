@@ -774,7 +774,21 @@
   check('M: Less restriction asks for only a 10 second wait (still locked at 8 s)', fricInput().disabled);
   await advance(4);
   check('M: ...and the box is open after 10 s', !fricInput().disabled);
-  blockBtn('Never mind').click();
+  check('M: the challenge has one clear action (no second "leave" button next to Unblock)', !blockBtn('Never mind') && !!blockBtn('Unblock for 5 minutes') && [...blockEl().querySelector('.fric').querySelectorAll('button')].filter((b) => b.textContent.trim()).length === 1);
+  fricInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, composed: true }));
+  await real(80);
+  check('M: Escape folds the challenge away: still blocked, the steps are hidden and "I need to continue" is back', !!blockEl() && blockEl().querySelector('.fric').hidden && !!blockBtn('I need to continue') && fricInput().value === '');
+  blockBtn('I need to continue').click();
+  await real(80);
+  check('M: the steps open again after being folded', !blockEl().querySelector('.fric').hidden && fricInput().disabled);
+  document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, composed: true }));
+  await real(80);
+  check('M: Escape works when focus is elsewhere on the page too', blockEl().querySelector('.fric').hidden && !!blockBtn('I need to continue'));
+  blockBtn('I need to continue').click();
+  await real(80);
+  blockEl().querySelector('.fric .fx').click();
+  await real(80);
+  check('M: the small cross in the corner folds the steps away as well', !!blockEl() && blockEl().querySelector('.fric').hidden && !!blockBtn('I need to continue'));
   await clearBlock();
   await setBlock({ level: 'strict', focus: undefined, apps: apps({ youtube: 'block' }) });
   await local.set({ blockState: C.applyFocus(C.emptyBlockState(), ['youtube'], 30, fakeNow) });
@@ -796,7 +810,9 @@
   fricInput().value = C.levelRules('strict').sentence;
   fricInput().dispatchEvent(new Event('input'));
   check('M: ...and accepts it after a 60 second wait', !blockBtn('Unblock for 5 minutes').disabled);
-  blockBtn('Never mind').click();
+  fricInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true, composed: true }));
+  await real(80);
+  check('M: Escape folds the Full restriction challenge away too, and it stays blocked', !!blockEl() && blockEl().querySelector('.fric').hidden && fricInput().value === '' && !!blockBtn('I need to continue'));
 
   // focus timer from the island, for this app only
   await clearBlock();
@@ -946,6 +962,21 @@
   const raw = (JSON.stringify(local.data) + JSON.stringify(session.data)).replace(/"shortsAsVideos"/g, '');
   check('I: stored data has only totals (no ids or URLs)', keys === 'h,p,r,s' && !/reel\d|shorts|youtube\.com|http/.test(raw.replace(/"youtube"|"tiktok"|"instagram"|"facebook"/g, '')), keys);
 
+  // ---- last on purpose: the orphaned script stays alive after this check ----
+  // an update or reload orphans the page script: with blocking set up it keeps enforcing the last known blocks on its own
+  await clearBlock();
+  goTo('youtube', '/shorts/orph1');
+  await setBlock({ apps: apps({ youtube: 'block' }) });
+  await local.set({ blockState: Object.assign(C.emptyBlockState(), { breaks: Object.assign({}, C.emptyBlockState().breaks, { youtube: fakeNow + 2 * MIN }) }) });
+  await advance(3);
+  await real(200);
+  check('N: (setup) during a break the page plays and shows the island', !blockEl() && !islandHidden());
+  const errBefore = errors.length;
+  chrome.runtime.id = undefined; // the extension was updated: this copy can no longer reach it
+  await advance(150); // the break runs out
+  await real(300);
+  check('N: an orphaned page with blocking set up brings the block back when the break ends, with a reload notice',
+    !!blockEl() && /Reel Meter was updated/.test(blockEl().textContent) && islandHidden() && errors.length === errBefore, blockEl() && blockEl().textContent.slice(0, 60));
   check('no script error was thrown during the whole run', errors.length === 0, errors.slice(0, 3).join(' | '));
   out(failures ? 'fail' : 'pass', '\n' + (failures ? failures + ' FAILED' : 'ALL CHECKS PASSED'));
   window.__done = { failures };

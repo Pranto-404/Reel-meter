@@ -457,3 +457,24 @@ test('describeBlock gives plain words and time left', () => {
   assert.match(lock.text, /YouTube Shorts/);
   assert.equal(lock.left, '6h left');
 });
+
+test('mergeChanges applies only what the user changed, on top of the newest settings', () => {
+  const base = C.normalizeSettings({ dailyReelLimit: 50, snoozeUntil: 0 });
+  const proposed = C.normalizeSettings({ dailyReelLimit: 90, snoozeUntil: 0 }); // the user raised the limit
+  const current = C.normalizeSettings({ dailyReelLimit: 50, snoozeUntil: 123456 }); // a pause was set meanwhile
+  const merged = C.mergeChanges(base, proposed, current);
+  assert.equal(merged.dailyReelLimit, 90);
+  assert.equal(merged.snoozeUntil, 123456);
+});
+
+test('mergeChanges goes into nested objects and ignores prototype keys', () => {
+  const base = { block: { apps: { youtube: 'block', facebook: 'block' } } };
+  const proposed = { block: { apps: { youtube: 'count', facebook: 'block' } } };
+  const current = { block: { apps: { youtube: 'block', facebook: 'count' } } };
+  const merged = C.mergeChanges(base, proposed, current);
+  assert.equal(merged.block.apps.youtube, 'count');
+  assert.equal(merged.block.apps.facebook, 'count');
+  const evil = JSON.parse('{"__proto__":{"polluted":1},"a":1}');
+  C.mergeChanges({}, evil, {});
+  assert.equal(({}).polluted, undefined);
+});

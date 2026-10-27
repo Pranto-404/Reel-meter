@@ -358,12 +358,15 @@
   }
 
   let saveTimer = 0;
+  let savePending = false;
   function scheduleSave(delay) {
     clearTimeout(saveTimer);
+    savePending = true;
     saveTimer = setTimeout(saveForm, delay);
   }
 
   async function saveForm() {
+    savePending = false;
     const f = $('settings');
     const o = await chrome.storage.local.get('settings');
     const prev = C.normalizeSettings(o.settings);
@@ -609,7 +612,7 @@
       clearTimeout(pending);
       pending = setTimeout(async () => {
         await refresh();
-        fillForm(true);
+        if (!savePending) fillForm(true); // a typed value is about to be saved: do not write the old one back over it
       }, 80);
     });
     // midnight rollover and pause expiry

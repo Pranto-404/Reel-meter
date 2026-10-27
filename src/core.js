@@ -453,6 +453,24 @@
    * Changing settings through the dashboard is "loosening" too, and is counted like an unblock: too many in a window
    * and no loosening is possible for hours. Returns { state, used, max, locked, lockUntil }.
    */
+  /**
+   * The settings dialog was opened from `base` and confirmed as `proposed` after a wait. Settings may have changed in
+   * the meantime (a pause from the popup, another dashboard tab). Apply only the fields the user changed on top of
+   * `current`, so nothing newer is lost.
+   */
+  function mergeChanges(base, proposed, current) {
+    const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+    if (!isObj(proposed)) return proposed;
+    const out = isObj(current) ? Object.assign({}, current) : {};
+    for (const k of Object.keys(proposed)) {
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+      const b = isObj(base) ? base[k] : undefined;
+      if (JSON.stringify(proposed[k]) === JSON.stringify(b)) continue; // the user did not touch it
+      out[k] = isObj(proposed[k]) && isObj(out[k]) ? mergeChanges(b, proposed[k], out[k]) : proposed[k];
+    }
+    return out;
+  }
+
   function applyLoosen(eff, now) {
     const rules = levelRules(eff.block.level);
     const state = normalizeBlockState(eff.block);
@@ -912,7 +930,7 @@
   return {
     PLATFORM_ORDER, PLATFORMS, DEFAULTS, CORNERS,
     SESSION_GAP_MS, LIMIT_REMIND_REELS, LIMIT_REMIND_SEC,
-    classify, platformOfHost, isPlatform, normalizeSettings, ReelTracker,
+    classify, platformOfHost, isPlatform, mergeChanges, normalizeSettings, ReelTracker,
     dayKey, parseDayKey, addDays, weekdayIndex,
     emptyDay, getDay, recordActivity, pruneStats, rangeDays, sumDays, weekdayHourHeat,
     evaluateLimits, goalMet, goalStreak,

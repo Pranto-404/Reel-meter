@@ -102,15 +102,18 @@
   window.__store = store;
 
   const html = await (await fetch('../src/ui/' + page + '.html')).text();
-  // the page runs under the REAL extension security policy (from manifest.json); anything it blocks is recorded
+  // the page runs under the REAL extension security policy (from manifest.json); anything it blocks is recorded.
+  // (The policy says base-uri 'none', so a <base> tag cannot be used: the page's own links are pointed at src/ui/ instead.
+  // The listeners are added after document.open(), which removes the ones that were there before.)
   window.__csp = [];
   window.__errors = [];
+  const csp = realManifest.content_security_policy.extension_pages;
+  const inUi = html.replace(/(<(?:link|script)\b[^>]*?\s(?:href|src)=")([^"#:]+)"/g, (m, pre, url) => (url.startsWith('/') ? m : pre + '../src/ui/' + url + '"'));
+  document.open();
   window.addEventListener('securitypolicyviolation', (e) => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI), true);
   window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
   window.addEventListener('unhandledrejection', (e) => window.__errors.push('rejection: ' + e.reason));
-  const csp = realManifest.content_security_policy.extension_pages;
-  document.open();
-  document.write(html.replace('<head>', '<head><meta http-equiv="Content-Security-Policy" content="' + csp + '"><base href="../src/ui/">'));
+  document.write(inUi.replace('<head>', '<head><meta http-equiv="Content-Security-Policy" content="' + csp + '">'));
   document.close();
 })();
 </script>

@@ -445,6 +445,7 @@
   const prg = $('unlock-prg');
   const RING_C = 2 * Math.PI * 40;
   let pending = null;
+  let pendingBase = null; // the settings the dialog was opened from
   let timer = 0;
   let left = 0;
   let wait = 30;
@@ -507,6 +508,7 @@
   function askUnlock(clean) {
     const rules = C.levelRules(settings.block.level); // the level that is running now, not the one being asked for
     pending = clean;
+    pendingBase = settings;
     wait = rules.waitSec;
     paintSentence(rules.sentence);
     input.value = '';
@@ -523,7 +525,7 @@
     clearInterval(timer);
     if (!dlg.open) dlg.showModal();
     // the worker keeps its own wait clock: the wait starts when it says so
-    chrome.runtime.sendMessage({ type: 'loosen-start', settings: clean }, (resp) => {
+    chrome.runtime.sendMessage({ type: 'loosen-start', settings: clean, base: settings }, (resp) => {
       if (!pending || pending !== clean) return;
       if (chrome.runtime.lastError || !resp || !resp.ok) {
         closeUnlock();
@@ -555,6 +557,7 @@
   go.addEventListener('click', async () => {
     if (!pending || left > 0 || !C.sentenceMatches(input.value, settings.block.level)) return;
     const next = pending;
+    const baseSettings = pendingBase;
     clearInterval(timer);
     pending = null;
     // re-check at the moment of saving: a lockout may have started while the dialog was open
@@ -564,7 +567,7 @@
     if (dlg.open) dlg.close();
     if (policy === 'denied-lock' || policy === 'denied-strict') { fillControls(); toast(REFUSALS[policy], { tone: 'info', duration: 7000 }); return; }
     // the background worker checks the rules again with its own wait clock, counts this loosening and saves the settings
-    chrome.runtime.sendMessage({ type: 'loosen', settings: next, sentence: input.value }, (resp) => {
+    chrome.runtime.sendMessage({ type: 'loosen', settings: next, base: baseSettings, sentence: input.value }, (resp) => {
       if (chrome.runtime.lastError || !resp || !resp.ok) {
         fillControls();
         toast(resp && REFUSALS[resp.why] ? REFUSALS[resp.why] : 'That change was not accepted. Please try again.', { tone: 'info', duration: 7000 });

@@ -37,6 +37,7 @@
   let over = false;
   let hiddenByUser = false;
   let dead = false;
+  let gone = false; // the extension was reloaded: this page keeps enforcing the last known blocks until it is reloaded
   let timer = 0;
   let settingsReady = false; // nothing is drawn until the stored settings have arrived, so it never jumps afterwards
   let wasSnoozed = false;
@@ -106,11 +107,29 @@
 
   // ----------------------------------------------------------------- messaging
 
+  /** Is anything set up that this page must keep enforcing (an app block, a schedule, the hard limit, a focus timer)? */
+  function blockingConfigured() {
+    const b = settings.block;
+    const now = Date.now();
+    return !!(b.hardLimit || (b.schedules && b.schedules.length) || Object.values(b.apps).includes('block')
+      || Object.values(blockState.focus || {}).some((t) => t > now));
+  }
+
+  /**
+   * The extension was reloaded or updated, so this copy of the script can no longer talk to it. A page with blocking
+   * set up is NOT given up: it keeps enforcing the last known blocks on its own clock and asks for a reload.
+   */
   function shutdown() {
-    dead = true;
+    if (dead || gone) return;
     clearInterval(timer);
-    if (blocked) ui.orphanBlock(); // keep a running block up and ask for a reload; anything else just goes away
-    else ui.destroy();
+    if (!blocked && !(C.classify(location.hostname, location.pathname) && blockingConfigured())) {
+      dead = true;
+      ui.destroy();
+      return;
+    }
+    gone = true;
+    ui.hideIsland();
+    if (blocked) ui.orphanBlock();
   }
 
   function send(msg, done) {
@@ -164,6 +183,7 @@
     over = !!resp.over;
     overDay = C.dayKey(new Date());
     extra = { streak: resp.streak || 0, limits: resp.limits || extra.limits };
+    applyGreyscale(); // "over the limit" may have just changed (limit raised, counts deleted, new day)
   }
 
   // --------------------------------------------------------------------- loop
@@ -174,7 +194,7 @@
   }
 
   function tick() {
-    if (dead) return;
+    if (dead || gone) return;
     if (orphaned()) { shutdown(); return; }
     checkBlock();
     const now = Date.now();
@@ -190,7 +210,7 @@
   }
 
   function render() {
-    if (dead || !settingsReady) return;
+    if (dead || gone || !settingsReady) return;
     const now = Date.now();
     const snoozed = settings.snoozeUntil > now && !settings.block.hardLimit; // no pausing while a hard daily limit is on
     const resumed = wasSnoozed && !snoozed; // the pause ended: by the clock, from the popup or from the island
@@ -283,6 +303,7 @@
       const first = !blocked;
       blocked = st;
       ui.showBlock(st, cls);
+      if (gone) ui.orphanBlock(); // the extension is gone: only a reload can unblock
       if (first) { tracker.reset(); render(); }
     } else if (blocked) {
       blocked = null;
@@ -337,7 +358,7 @@
       /* left/top are set by place(); the island is anchored by its centre (or right edge) through "translate",
          so when its width springs open it grows around that point and never drifts. No transition on left/top. */
       position: fixed; left: 0; top: 0; z-index: 2147483646; width: var(--w); max-width: calc(100vw - 16px);
-      background: #000; color: #fff; border-radius: 18px; overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,0) 58%), #000; color: #fff; border-radius: 18px; overflow: hidden;
       box-shadow: inset 0 0 0 1px var(--glow), 0 8px 24px rgba(0,0,0,.45);
       font-size: 13px; line-height: 18px; font-weight: 600; user-select: none; touch-action: none; cursor: grab;
       transform-origin: 50% 0;
@@ -371,9 +392,9 @@
     .resume {
       flex: none; font: inherit; font-size: 12px; font-weight: 700; line-height: 18px; cursor: pointer;
       border: 0; border-radius: 999px; padding: 3px 11px; margin: 0 -6px 0 2px; background: #fff; color: #000;
-      transition: background .15s, transform .15s;
+      transition: background .15s, transform .3s cubic-bezier(.3,1.5,.5,1);
     }
-    .resume:hover { background: #e2e1dc; }
+    .resume:hover { background: #e2e1dc; transform: translateY(-1px); }
     .resume:active { transform: scale(.94); }
     .isl.narrow .bar { gap: 6px; padding: 0 10px; }
     .isl.narrow .sep, .isl.narrow .time { display: none; }
@@ -417,11 +438,22 @@
     .actions button, .toast button, .pause button {
       font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 999px;
       padding: 6px 12px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06); color: inherit;
-      transition: background .15s, transform .15s;
+      transition: background .15s, border-color .15s, transform .3s cubic-bezier(.3,1.5,.5,1);
     }
     .actions button { flex: 1; white-space: nowrap; padding: 6px 8px; }
     .actions button:hover, .toast button:hover, .pause button:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+    .actions button:hover:not(:active) { transform: translateY(-1px); border-color: rgba(255,255,255,.4); }
     .actions button:active { transform: scale(.96); }
+    /* the card's contents settle in one after the other when it opens */
+    .isl.expanded .more > * { animation: moreIn .5s cubic-bezier(.2,.85,.25,1) backwards; }
+    .isl.expanded .more > :nth-child(1) { animation-delay: 70ms; }
+    .isl.expanded .more > :nth-child(2) { animation-delay: 110ms; }
+    .isl.expanded .more > :nth-child(3) { animation-delay: 150ms; }
+    .isl.expanded .more > :nth-child(4) { animation-delay: 190ms; }
+    .isl.expanded .more > :nth-child(5) { animation-delay: 230ms; }
+    .isl.noting .note { animation: moreIn .45s cubic-bezier(.2,.85,.25,1) .08s backwards; }
+    .track i, .meter i { position: relative; overflow: hidden; }
+    .isl.near .track i::after, .isl.over .track i::after, .isl.near .meter i::after, .isl.over .meter i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.4), rgba(255,255,255,0)); transform: translateX(-100%); animation: trackshine 3.2s ease-in-out infinite; }
     button:focus-visible { outline: 2px solid #4f9bf0; outline-offset: 2px; }
 
     .toast {
@@ -429,17 +461,24 @@
       max-width: min(420px, calc(100vw - 32px)); padding: 12px 14px; border-radius: 16px;
       background: #000; color: #f0efec; font-size: 14px; line-height: 20px;
       border: 1px solid rgba(255,255,255,.14); box-shadow: 0 6px 24px rgba(0,0,0,.4);
-      display: flex; gap: 12px; align-items: center;
+      display: flex; gap: 12px; align-items: center; animation: toastin .45s cubic-bezier(.2,.85,.25,1) backwards;
     }
     .pause {
       position: fixed; inset: 0; z-index: 2147483647; display: flex; flex-direction: column; gap: 18px;
       align-items: center; justify-content: center; text-align: center; padding: 24px;
       background: rgba(13,13,13,.92); color: #f0efec; backdrop-filter: blur(10px);
     }
+    .pause { animation: bfade .45s ease-out backwards; }
+    .pause > * { animation: rise .55s cubic-bezier(.2,.85,.25,1) backwards; }
+    .pause > :nth-child(2) { animation-delay: 60ms; }
+    .pause > :nth-child(3) { animation-delay: 120ms; }
+    .pause > :nth-child(4) { animation-delay: 180ms; }
+    .pause > :nth-child(5) { animation-delay: 240ms; }
     .pause h2 { margin: 0; font-size: 22px; font-weight: 650; }
     .pause p { margin: 0; font-size: 15px; color: #c3c2b7; max-width: 380px; }
     .orb {
-      width: 96px; height: 96px; border-radius: 50%; background: #2a78d6; opacity: .85;
+      width: 96px; height: 96px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #7db8ff, #2a78d6 58%, #1d5fb0); opacity: .9;
+      box-shadow: 0 0 60px rgba(42,120,214,.5), inset 0 2px 0 rgba(255,255,255,.25);
       animation: breathe 8s ease-in-out infinite;
     }
     .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -451,40 +490,64 @@
     /* ------------------------------------------------------------------------------------------------
        The block screen: replaces a reel page while a block is on. Dark on purpose (calm, no glare).
        Variants: default (blue and teal), .v-lock (lockout: muted amber), .v-strict (Full restriction, cannot be unblocked: indigo).
-       Only transform and opacity are animated while it sits there; nothing here moves or resizes once it has settled.
+       A slow aurora drifts behind a glass card. Motion is transform, opacity, filter and background-position only; nothing here
+       moves or resizes once it has settled except the gentle breathing of the lock and the drifting light.
        ------------------------------------------------------------------------------------------------ */
     .block, .bsplash {
-      --bg: #0a0b0d; --fg: #f1f0ec; --mute: #b6b5ad; --dim: #94938c;
-      --acc: #6aa8f5; --acc-rgb: 106,168,245; --acc2-rgb: 79,209,181; --g1: #2563c9; --g2: #0e7c86;
+      --bg: #090a0d; --fg: #f3f2ee; --mute: #bdbcb4; --dim: #9b9a93; --t1: #ffffff; --t2: #c4d2ee;
+      --acc: #6aa8f5; --acc-rgb: 106,168,245; --acc2-rgb: 79,209,181; --acc3-rgb: 140,118,236; --g1: #2563c9; --g2: #0e7c86;
+      --spring: cubic-bezier(.3,1.5,.5,1); --smooth: cubic-bezier(.2,.85,.25,1);
     }
-    .block.v-lock, .bsplash.v-lock { --bg: #0e0b0a; --acc: #f0b36a; --acc-rgb: 240,179,106; --acc2-rgb: 224,120,104; --g1: #a8571a; --g2: #8c3b34; }
-    .block.v-strict, .bsplash.v-strict { --bg: #0a0a11; --acc: #aeadff; --acc-rgb: 174,173,255; --acc2-rgb: 110,160,255; --g1: #4b49c9; --g2: #2f6bc4; }
+    .block.v-lock, .bsplash.v-lock { --bg: #0d0a09; --t2: #f1d3a8; --acc: #f0b36a; --acc-rgb: 240,179,106; --acc2-rgb: 224,120,104; --acc3-rgb: 214,98,140; --g1: #a8571a; --g2: #8c3b34; }
+    .block.v-strict, .bsplash.v-strict { --bg: #090912; --t2: #cdccff; --acc: #aeadff; --acc-rgb: 174,173,255; --acc2-rgb: 110,160,255; --acc3-rgb: 170,120,255; --g1: #4b49c9; --g2: #2f6bc4; }
     .block {
       position: fixed; inset: 0; z-index: 2147483647; display: flex; padding: 24px; isolation: isolate;
       background: var(--bg); color: var(--fg); overflow-x: hidden; overflow-y: auto; -webkit-text-size-adjust: 100%;
-      animation: bfade .35s ease-out backwards;
+      animation: bfade .45s ease-out backwards;
     }
     .aura { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
-    .aura i { position: absolute; width: 72vmax; height: 72vmax; border-radius: 50%; will-change: transform; }
-    .aura i:nth-child(1) { left: -28vmax; top: -34vmax; background: radial-gradient(closest-side, rgba(var(--acc-rgb), .2), rgba(var(--acc-rgb), 0)); animation: drift1 24s ease-in-out infinite alternate; }
-    .aura i:nth-child(2) { right: -34vmax; bottom: -40vmax; background: radial-gradient(closest-side, rgba(var(--acc2-rgb), .15), rgba(var(--acc2-rgb), 0)); animation: drift2 30s ease-in-out infinite alternate; }
-    .bcard { position: relative; width: min(440px, 100%); margin: auto; display: grid; gap: 14px; justify-items: center; text-align: center; padding: 8px 0; animation: cardin .55s cubic-bezier(.2,.85,.25,1) backwards; transition: gap .4s cubic-bezier(.2,.85,.25,1); }
+    .aura i { position: absolute; width: 78vmax; height: 78vmax; border-radius: 50%; will-change: transform; }
+    .aura i:nth-child(1) { left: -30vmax; top: -38vmax; background: radial-gradient(closest-side, rgba(var(--acc-rgb), .42), rgba(var(--acc-rgb), 0)); animation: drift1 26s ease-in-out infinite alternate; }
+    .aura i:nth-child(2) { right: -36vmax; bottom: -44vmax; background: radial-gradient(closest-side, rgba(var(--acc2-rgb), .32), rgba(var(--acc2-rgb), 0)); animation: drift2 32s ease-in-out infinite alternate; }
+    .aura i:nth-child(3) { left: 34vw; top: 30vh; width: 56vmax; height: 56vmax; background: radial-gradient(closest-side, rgba(var(--acc3-rgb), .2), rgba(var(--acc3-rgb), 0)); animation: drift3 38s ease-in-out infinite alternate; }
+    .aura::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 38%, rgba(0,0,0,.5) 100%); }
+    /* a few slow motes of light rising, like dust in a sunbeam */
+    .aura b { position: absolute; left: var(--x); bottom: -14px; width: var(--s); height: var(--s); border-radius: 50%; background: rgba(var(--acc-rgb), .75); opacity: 0; animation: mote var(--t) linear var(--d) infinite; will-change: transform, opacity; }
+
+    .bcard {
+      position: relative; width: min(460px, 100%); margin: auto; display: grid; gap: 14px; justify-items: center; text-align: center; padding: 34px 28px 26px; border-radius: 30px;
+      background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.09);
+      box-shadow: 0 34px 90px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.07) inset, 0 0 0 1px rgba(0,0,0,.25);
+      -webkit-backdrop-filter: blur(16px) saturate(1.25); backdrop-filter: blur(16px) saturate(1.25);
+      animation: cardin .7s var(--smooth) backwards; transition: gap .4s var(--smooth);
+    }
+    /* a thin light that slowly travels around the edge of the glass */
+    .bcard::before {
+      content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+      background: linear-gradient(115deg, rgba(255,255,255,0) 18%, rgba(var(--acc-rgb), .8) 42%, rgba(255,255,255,.55) 50%, rgba(var(--acc2-rgb), .7) 58%, rgba(255,255,255,0) 82%) 0 0 / 320% 100% no-repeat;
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
+      animation: rim 11s ease-in-out infinite alternate;
+    }
     .bcard.fopen { gap: 10px; }
-    .bcard > * { animation: rise .38s cubic-bezier(.2,.85,.25,1) backwards; animation-delay: calc(var(--i, 0) * 30ms); }
-    .block h2 { margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -.015em; text-wrap: balance; }
+    .bcard > * { animation: rise .6s var(--smooth) backwards; animation-delay: calc(90ms + var(--i, 0) * 55ms); }
+    .block h2 {
+      margin: 0; font-size: 30px; line-height: 36px; font-weight: 750; letter-spacing: -.02em; text-wrap: balance;
+      background: linear-gradient(180deg, var(--t1) 25%, var(--t2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
     .block p { margin: 0; font-size: 16px; line-height: 24px; color: var(--mute); text-wrap: pretty; }
 
-    .lock { position: relative; width: 68px; height: 68px; border-radius: 22px; display: grid; place-items: center; color: var(--acc);
-      background: linear-gradient(150deg, rgba(var(--acc-rgb), .22), rgba(var(--acc-rgb), .06));
-      box-shadow: inset 0 0 0 1px rgba(var(--acc-rgb), .34), 0 12px 32px rgba(var(--acc-rgb), .16); }
-    .lock::before, .lock::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 1.5px rgba(var(--acc-rgb), .55); opacity: 0; animation: halo 3.8s ease-out infinite; }
-    .lock::after { animation-delay: 1.9s; }
+    .bcard > .lock { animation: rise .6s var(--smooth) backwards, lockbreath 5.5s ease-in-out 1s infinite; animation-delay: 90ms, 1s; }
+    .lock { position: relative; width: 72px; height: 72px; border-radius: 24px; display: grid; place-items: center; color: var(--acc);
+      background: linear-gradient(150deg, rgba(var(--acc-rgb), .28), rgba(var(--acc-rgb), .07));
+      box-shadow: inset 0 0 0 1px rgba(var(--acc-rgb), .38), inset 0 1px 0 rgba(255,255,255,.14), 0 14px 38px rgba(var(--acc-rgb), .22); }
+    .lock::before, .lock::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 1.5px rgba(var(--acc-rgb), .55); opacity: 0; animation: halo 4.2s ease-out infinite; }
+    .lock::after { animation-delay: 2.1s; }
     .block.v-strict .lock { border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(var(--acc-rgb), .4), 0 0 0 7px rgba(var(--acc-rgb), .07), 0 0 0 8px rgba(var(--acc-rgb), .22), 0 12px 32px rgba(var(--acc-rgb), .16); }
-    .lock { transition: width .4s cubic-bezier(.2,.85,.25,1), height .4s cubic-bezier(.2,.85,.25,1); }
+    .lock { transition: width .4s var(--smooth), height .4s var(--smooth); }
     .bcard.fopen .lock { width: 48px; height: 48px; }
-    .lock svg { transition: width .4s cubic-bezier(.2,.85,.25,1), height .4s cubic-bezier(.2,.85,.25,1); }
+    .lock svg { transition: width .4s var(--smooth), height .4s var(--smooth); }
     .bcard.fopen .lock svg { width: 22px; height: 22px; }
-    .lock svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+    .lock svg { width: 32px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
     .lock .shackle { transform-box: fill-box; transform-origin: 50% 100%; animation: shackle 7s ease-in-out infinite; }
     .lock .keyhole { fill: currentColor; stroke: none; }
 
@@ -498,7 +561,7 @@
     .bnudge { display: flex; align-items: flex-start; justify-content: center; min-height: 46px; max-width: 34ch; }
     .block p.bnudgep { font-size: 14px; line-height: 21px; color: var(--mute); }
     .bnudgep.rot { animation: textin .8s ease backwards; }
-    .fd { width: 100%; display: grid; grid-template-rows: 1fr; justify-items: center; transition: grid-template-rows .4s cubic-bezier(.2,.85,.25,1), opacity .3s ease, margin .4s cubic-bezier(.2,.85,.25,1); }
+    .fd { width: 100%; display: grid; grid-template-rows: 1fr; justify-items: center; transition: grid-template-rows .4s var(--smooth), opacity .3s ease, margin .4s var(--smooth); }
     .fd > .fi { min-height: 0; overflow: hidden; display: grid; justify-items: center; width: 100%; }
     .bcard.fopen .fd.fold-on-open { grid-template-rows: 0fr; opacity: 0; margin-top: -10px; }
 
@@ -509,93 +572,112 @@
 
     .bacts { width: 100%; display: grid; gap: 10px; justify-items: center; margin-top: 6px; }
     .block button {
-      font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: 999px; min-height: 48px; padding: 0 22px;
+      position: relative; overflow: hidden; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: 999px; min-height: 48px; padding: 0 22px;
       display: inline-flex; align-items: center; justify-content: center; gap: 9px; text-align: center; -webkit-tap-highlight-color: transparent;
-      border: 1px solid rgba(255,255,255,.24); background: rgba(255,255,255,.05); color: var(--fg);
-      transition: background-color .18s, border-color .18s, transform .18s, box-shadow .25s, opacity .2s, color .2s;
+      border: 1px solid rgba(255,255,255,.22); background-color: rgba(255,255,255,.05); color: var(--fg);
+      transition: background-color .2s, border-color .2s, transform .35s var(--spring), box-shadow .3s, opacity .2s, color .2s, filter .2s;
     }
-    .block button:hover:not(:disabled) { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.36); }
-    .block button:active:not(:disabled) { transform: scale(.97); }
+    .block button:hover:not(:disabled) { background-color: rgba(255,255,255,.12); border-color: rgba(255,255,255,.36); transform: translateY(-1px); }
+    .block button:active:not(:disabled) { transform: scale(.97); transition-duration: .12s; }
     .block button:disabled { opacity: .5; cursor: default; }
     .block button:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
-    .block button svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .25s cubic-bezier(.2,.85,.25,1); }
-    .bacts button { width: 100%; max-width: 340px; }
+    .block button svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .3s var(--smooth); }
+    .bacts button { width: 100%; max-width: 360px; }
+    /* a soft ring of light that opens where a button is pressed */
+    .rip { position: absolute; left: 0; top: 0; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: rgba(255,255,255,.4); pointer-events: none; transform: scale(0); animation: ripple .65s ease-out forwards; z-index: 2; }
     .block button.go {
-      position: relative; overflow: hidden; min-height: 58px; font-size: 17px; font-weight: 700; border: 0; color: #fff;
-      background: linear-gradient(135deg, var(--g1), var(--g2)); box-shadow: 0 12px 30px rgba(var(--acc-rgb), .26), inset 0 1px 0 rgba(255,255,255,.2);
+      min-height: 60px; font-size: 17px; font-weight: 700; border: 0; color: #fff;
+      background: linear-gradient(120deg, var(--g1), var(--g2) 50%, var(--g1)) 0 0 / 220% 100%; animation: gradflow 10s ease-in-out infinite alternate;
+      box-shadow: 0 14px 34px rgba(var(--acc-rgb), .3), inset 0 1px 0 rgba(255,255,255,.22);
     }
-    .block button.go:hover:not(:disabled) { background: linear-gradient(135deg, var(--g1), var(--g2)); transform: translateY(-1px); box-shadow: 0 16px 36px rgba(var(--acc-rgb), .36), inset 0 1px 0 rgba(255,255,255,.24); }
+    .block button.go:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 18px 40px rgba(var(--acc-rgb), .4), inset 0 1px 0 rgba(255,255,255,.26); }
     .block button.go:hover svg { transform: translateX(4px); }
-    .block button.go::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.24) 50%, transparent 62%); transform: translateX(-130%); animation: shine 6s ease-in-out 1.4s infinite; pointer-events: none; }
+    .block button.go::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.26) 50%, transparent 62%); transform: translateX(-130%); animation: shine 6s ease-in-out 1.6s infinite; pointer-events: none; }
     .block button.go:focus-visible { outline-color: #fff; outline-offset: 3px; }
     .block button.blink {
       border: 0; background: none; min-height: 44px; padding: 0 14px; margin-top: 2px; font-size: 14px; font-weight: 500; color: var(--mute);
-      text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,.3); max-height: 60px; overflow: hidden;
-      transition: color .2s, opacity .3s ease, max-height .4s cubic-bezier(.2,.85,.25,1), margin .4s cubic-bezier(.2,.85,.25,1), visibility 0s;
+      text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,.3); max-height: 60px;
+      transition: color .2s, opacity .3s ease, max-height .4s var(--smooth), margin .4s var(--smooth), visibility 0s, transform .35s var(--spring);
     }
-    .block button.blink:hover:not(:disabled) { background: none; color: var(--fg); }
+    .block button.blink:hover:not(:disabled) { background: none; color: var(--fg); text-decoration-color: var(--acc); }
     /* hidden by the code (the hook), but kept in the layout while it folds away so nothing jumps */
-    .block button.blink[hidden] { display: inline-flex !important; visibility: hidden; opacity: 0; max-height: 0; min-height: 0; margin-top: -14px; padding-top: 0; padding-bottom: 0; pointer-events: none; transition: color .2s, opacity .25s ease, max-height .4s cubic-bezier(.2,.85,.25,1), margin .4s cubic-bezier(.2,.85,.25,1), visibility 0s linear .4s; }
+    .block button.blink[hidden] { display: inline-flex !important; visibility: hidden; opacity: 0; max-height: 0; min-height: 0; margin-top: -14px; padding-top: 0; padding-bottom: 0; pointer-events: none; transition: color .2s, opacity .25s ease, max-height .4s var(--smooth), margin .4s var(--smooth), visibility 0s linear .4s; }
 
     .bpips { display: grid; gap: 9px; justify-items: center; }
-    .pips { display: flex; gap: 11px; justify-content: center; margin: 2px 0 0; }
-    .pips i { position: relative; display: block; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.22);
-      animation: pipin .45s cubic-bezier(.3,1.6,.5,1) backwards; animation-delay: calc(var(--k, 0) * 70ms + 220ms); transition: background-color .3s, box-shadow .3s; }
-    .pips i.used { background: #f4b942; box-shadow: 0 0 0 3px rgba(244,185,66,.18); }
-    .pips i.fresh { animation: pipused .8s cubic-bezier(.3,1.5,.5,1) backwards; }
+    .pips { display: flex; gap: 12px; justify-content: center; margin: 2px 0 0; }
+    .pips i { position: relative; display: block; width: 15px; height: 15px; border-radius: 50%; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.24);
+      animation: pipin .5s var(--spring) backwards; animation-delay: calc(var(--k, 0) * 80ms + 260ms); transition: background-color .3s, box-shadow .3s; }
+    .pips i.used { background: radial-gradient(circle at 35% 30%, #ffd98a, #f4b942 65%); box-shadow: 0 0 0 3px rgba(244,185,66,.2), 0 0 14px rgba(244,185,66,.4); }
+    .pips i.fresh { animation: pipused .9s var(--spring) backwards; }
     .pips i.last::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid rgba(244,185,66,.75); opacity: 0; animation: pippulse 2s ease-out infinite; }
     .block p.small { font-size: 13px; line-height: 19px; color: var(--dim); max-width: 36ch; }
 
-    .ffold { width: 100%; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.2,.85,.25,1); }
+    .ffold { width: 100%; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s var(--smooth); }
     .ffold.open { grid-template-rows: 1fr; }
     .ffold > .fin { min-height: 0; overflow: hidden; }
-    .fric { width: 100%; display: grid; gap: 11px; padding: 18px 18px 16px; border-radius: 22px; text-align: left; justify-items: stretch;
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025)); border: 1px solid rgba(255,255,255,.13); }
+    .fric { position: relative; width: 100%; display: grid; gap: 12px; padding: 20px 18px 18px; border-radius: 24px; text-align: left; justify-items: stretch;
+      background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.13); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+    .ffold.open .fric { animation: panelin .55s var(--smooth) backwards; }
     .fric:focus { outline: none; }
-    .block .fric[hidden] { display: grid !important; visibility: hidden; transition: visibility 0s linear .45s; }
+    .block .fric[hidden] { display: grid !important; visibility: hidden; transition: visibility 0s linear .5s; }
     .fric p { font-size: 14px; line-height: 21px; }
-    .ftop { display: flex; align-items: center; gap: 16px; }
+    /* a small cross in the corner folds the steps away (Escape does the same); it is not a second way out of the block */
+    .block button.fx { position: absolute; top: 6px; right: 6px; z-index: 3; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background-color: transparent; color: var(--dim); }
+    .block button.fx svg { width: 16px; height: 16px; stroke-width: 2.4; }
+    .block button.fx:hover:not(:disabled) { background-color: rgba(255,255,255,.1); color: var(--fg); transform: rotate(90deg); }
+    .ftop { display: flex; align-items: center; gap: 16px; padding-right: 26px; }
     .fcol { display: grid; gap: 6px; min-width: 0; }
     .block p.fwait { font-size: 15px; line-height: 22px; font-weight: 650; color: var(--fg); font-variant-numeric: tabular-nums; }
-    .ring { position: relative; flex: none; width: 88px; height: 88px; }
-    .ring::before { content: ""; position: absolute; inset: 10px; border-radius: 50%; background: radial-gradient(closest-side, rgba(var(--acc-rgb), .16), rgba(var(--acc-rgb), 0)); }
+    .ring { position: relative; flex: none; width: 92px; height: 92px; }
+    .ring::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: radial-gradient(closest-side, rgba(var(--acc-rgb), .2), rgba(var(--acc-rgb), 0)); animation: glowbeat 3.2s ease-in-out infinite; }
     .ring svg.rsv { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; overflow: visible; }
     .ring .trk { stroke: rgba(255,255,255,.12); stroke-width: 6; }
-    .ring .prg { stroke: var(--acc); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .4s; }
+    .ring .prg { stroke: var(--acc); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .4s; filter: drop-shadow(0 0 5px rgba(var(--acc-rgb), .65)); }
+    .ring .rhead { position: absolute; inset: 0; transition: transform 1s linear, opacity .3s; }
+    .ring .rhead::after { content: ""; position: absolute; left: 50%; top: calc(6.5% - 5px); width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px 2px rgba(var(--acc-rgb), .85); }
     .ring .mid { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; transition: opacity .25s, transform .3s; }
     .ring .rn { font-size: 32px; line-height: 32px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
     .ring .ru { font-size: 11px; line-height: 14px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
     .ring svg.rck { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; fill: none; stroke: #6ee7b0; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
     .ring svg.rck path { stroke-dasharray: 26; stroke-dashoffset: 26; }
-    .fric.done .ring .prg { stroke: #6ee7b0; }
+    .fric.done .ring .prg { stroke: #6ee7b0; filter: drop-shadow(0 0 7px rgba(110,231,176,.7)); }
+    .fric.done .ring .rhead { opacity: 0; }
     .fric.done .ring .mid { opacity: 0; transform: scale(.7); }
     .fric.done .ring svg.rck { opacity: 1; }
     .fric.done .ring svg.rck path { animation: draw .5s .1s ease-out forwards; }
-    .fric.done .ring { animation: ringpop .6s cubic-bezier(.3,1.5,.5,1); }
+    .fric.done .ring { animation: ringpop .6s var(--spring); }
+    /* the little burst of light when the wait is over */
+    .burst { position: absolute; inset: 0; pointer-events: none; }
+    .burst i { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--c); animation: burst .95s cubic-bezier(.15,.8,.3,1) forwards; }
+    .burst b { position: absolute; inset: 4px; border-radius: 50%; border: 2px solid rgba(110,231,176,.8); opacity: 0; animation: burstring .8s ease-out forwards; }
     .block .fric p.finfo { color: var(--mute); }
     .fric p.fwarn { padding: 10px 13px; border-radius: 12px; font-size: 13.5px; line-height: 20px; font-weight: 600; color: #f7d385; background: rgba(244,185,66,.1); border: 1px solid rgba(244,185,66,.3); }
-    .block .fric p.sentence { text-align: center; font-size: 18px; line-height: 26px; font-weight: 650; color: var(--mute); padding: 4px 4px 0; text-wrap: balance; }
+    .block .fric p.sentence { text-align: center; font-size: 19px; line-height: 28px; font-weight: 650; color: var(--mute); padding: 4px 4px 0; text-wrap: balance; }
     .sentence .w { display: inline-block; white-space: nowrap; }
-    .sentence .c { transition: color .15s; }
-    .sentence .c.m { color: var(--acc); }
+    .sentence .w .c { position: relative; display: inline-block; transition: color .2s, text-shadow .35s; }
+    .sentence .c.m { color: var(--acc); text-shadow: 0 0 16px rgba(var(--acc-rgb), .55); animation: charpop .4s var(--spring); }
     .sentence .c.x { color: #f7c25a; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-    .fric.almost .sentence .c.m { color: #7fe3cc; }
-    .fric.ready .sentence .c.m { color: #7ff0b8; }
+    /* where the next letter goes */
+    .sentence .c.cur { position: relative; }
+    .sentence .c.cur::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; min-width: 4px; border-radius: 2px; background: rgba(var(--acc-rgb), .95); animation: curpulse 1.2s ease-in-out infinite; }
+    .fric.almost .sentence .c.m { color: #7fe3cc; text-shadow: 0 0 16px rgba(127,227,204,.5); }
+    .fric.ready .sentence .c.m { color: #7ff0b8; text-shadow: 0 0 18px rgba(127,240,184,.6); }
+    .fric.slip .inwrap { animation: shake .45s ease; }
     .inwrap { position: relative; }
-    .fric input { width: 100%; font: inherit; font-size: 16px; min-height: 52px; padding: 0 46px 0 16px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(0,0,0,.38); color: #fff;
-      transition: border-color .2s, box-shadow .25s, opacity .2s; }
+    .fric input { width: 100%; font: inherit; font-size: 16px; min-height: 52px; padding: 0 46px 0 16px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(0,0,0,.4); color: #fff;
+      transition: border-color .25s, box-shadow .3s, opacity .25s, background-color .25s; }
     .fric input::placeholder { color: var(--dim); }
     .fric input:disabled { opacity: .5; }
     .fric input:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
     .fric.typing input { border-color: rgba(var(--acc-rgb), .8); }
     .fric.off input { border-color: #f4b942; box-shadow: 0 0 0 3px rgba(244,185,66,.15); }
     .fric.almost input { border-color: #5fd6c0; box-shadow: 0 0 0 3px rgba(95,214,192,.16); }
-    .fric.ready input { border-color: #6ee7b0; box-shadow: 0 0 0 4px rgba(110,231,176,.2); }
-    .tick { position: absolute; right: 14px; top: 50%; width: 22px; height: 22px; margin-top: -11px; color: #6ee7b0; opacity: 0; transform: scale(.4); transition: opacity .25s, transform .35s cubic-bezier(.3,1.6,.5,1); pointer-events: none; }
+    .fric.ready input { border-color: #6ee7b0; box-shadow: 0 0 0 4px rgba(110,231,176,.2); background: rgba(10,40,28,.45); }
+    .tick { position: absolute; right: 14px; top: 50%; width: 22px; height: 22px; margin-top: -11px; color: #6ee7b0; opacity: 0; transform: scale(.4); transition: opacity .25s, transform .4s var(--spring); pointer-events: none; }
     .tick svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .fric.ready .tick { opacity: 1; transform: none; }
     .tprog { height: 3px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: -4px; }
-    .tprog i { display: block; height: 100%; width: 100%; border-radius: 3px; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); transition: transform .28s cubic-bezier(.2,.85,.25,1), background-color .3s; }
+    .tprog i { display: block; height: 100%; width: 100%; border-radius: 3px; background: var(--acc); transform-origin: 0 50%; transform: scaleX(0); transition: transform .32s var(--smooth), background-color .3s; }
     .fric.off .tprog i { background: #f4b942; }
     .fric.almost .tprog i { background: #5fd6c0; }
     .fric.ready .tprog i { background: #6ee7b0; }
@@ -604,24 +686,61 @@
     .fric.off p.fhint { color: #f7c25a; }
     .fric.almost p.fhint { color: #7fe3cc; }
     .fric.ready p.fhint { color: #8cf0c0; font-weight: 600; }
-    .fric.pop { animation: readypop .6s cubic-bezier(.3,1.4,.5,1); }
+    .fric.pop { animation: readypop .6s var(--spring); }
     .fric p.ferr { padding: 10px 13px; border-radius: 12px; font-size: 13.5px; line-height: 20px; font-weight: 600; color: #ffb4b4; background: rgba(255,120,120,.1); border: 1px solid rgba(255,120,120,.3); text-align: center; }
     .fric p.ferr.shake { animation: shake .45s ease; }
-    .frow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 2px; }
-    .frow button { flex: 1 1 auto; white-space: nowrap; }
-    .block button.stay { border: 0; color: #fff; background: linear-gradient(135deg, var(--g1), var(--g2)); box-shadow: 0 8px 22px rgba(var(--acc-rgb), .22); }
-    .block button.stay:hover:not(:disabled) { background: linear-gradient(135deg, var(--g1), var(--g2)); filter: brightness(1.1); }
-    .block button.unlock:not(:disabled) { border-color: rgba(110,231,176,.55); color: #c9f7e1; }
-    .fric.ready button.unlock { animation: unlockglow 2.4s ease-in-out infinite; }
+    .frow { display: grid; margin-top: 2px; }
+    /* the one action of the panel: it fills as the sentence is typed, turns green and lifts its latch when it is ready */
+    .block button.unlock { isolation: isolate; width: 100%; min-height: 58px; font-size: 16.5px; font-weight: 700; color: var(--mute); border: 1px solid rgba(255,255,255,.2); background-color: rgba(255,255,255,.04); }
+    .block button.unlock:disabled { opacity: 1; cursor: not-allowed; }
+    .block button.unlock > span, .block button.unlock > svg { position: relative; z-index: 1; }
+    .block button.unlock::before { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(90deg, rgba(var(--acc-rgb), .16), rgba(var(--acc-rgb), .36)); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); transition: transform .4s var(--smooth), opacity .3s; }
+    .block button.unlock::after {
+      content: ""; position: absolute; inset: 0; z-index: 0; opacity: 0; transition: opacity .45s ease; pointer-events: none;
+      background: linear-gradient(105deg, rgba(255,255,255,0), rgba(255,255,255,.3), rgba(255,255,255,0)) -100% 0 / 45% 100% no-repeat, linear-gradient(135deg, #127a56, #0e6f7a);
+    }
+    .block button.unlock:not(:disabled) { color: #fff; border-color: transparent; box-shadow: 0 14px 34px rgba(110,231,176,.24), inset 0 1px 0 rgba(255,255,255,.24); animation: unlockglow 2.6s ease-in-out infinite; }
+    .block button.unlock:not(:disabled)::before { opacity: 0; }
+    .block button.unlock:not(:disabled)::after { opacity: 1; animation: shinebp 3.6s ease-in-out .4s infinite; }
+    .block button.unlock:focus-visible { outline-color: #8cf0c0; }
+    .block button.unlock .ush { transform-box: fill-box; transform-origin: 100% 100%; transition: transform .5s var(--spring); }
+    .block button.unlock:not(:disabled) .ush { transform: translateY(-1.5px) rotate(-32deg); }
 
     /* shown for about a second when a break opens, over the page that comes back underneath; it takes no clicks */
     .bsplash { position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; pointer-events: none; background: var(--bg); color: var(--fg); animation: splashout 1.15s ease-in both; }
-    .bsplash .sp { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 24px; animation: splashin 1.15s cubic-bezier(.2,.85,.25,1) both; }
-    .bsplash .ok { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: #6ee7b0; background: rgba(110,231,176,.12); box-shadow: inset 0 0 0 2px rgba(110,231,176,.5), 0 0 0 10px rgba(110,231,176,.07); }
+    .bsplash .sp { display: grid; gap: 12px; justify-items: center; text-align: center; padding: 24px; animation: splashin 1.15s var(--smooth) both; }
+    .bsplash .ok { position: relative; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: #6ee7b0; background: rgba(110,231,176,.12); box-shadow: inset 0 0 0 2px rgba(110,231,176,.5), 0 0 0 10px rgba(110,231,176,.07); }
+    .bsplash .ok::before { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 2px rgba(110,231,176,.6); animation: burstring .9s .1s ease-out both; }
     .bsplash .ok svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .bsplash .ok path { stroke-dasharray: 26; stroke-dashoffset: 26; animation: draw .45s .12s ease-out forwards; }
     .bsplash h3 { margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; }
     .bsplash p { margin: 0; font-size: 15px; color: var(--mute); }
+
+    @media (max-width: 420px) {
+      .block { padding: 10px; }
+      .bcard { padding: 26px 16px 20px; border-radius: 26px; }
+      .block h2 { font-size: 25px; line-height: 31px; }
+      .block p { font-size: 15px; line-height: 22px; }
+      .fric { padding: 18px 14px 14px; border-radius: 20px; }
+      .ring { width: 80px; height: 80px; }
+      .ring .rn { font-size: 28px; }
+      .ftop { gap: 12px; padding-right: 22px; }
+      .block button.unlock { padding: 0 12px; font-size: 15px; gap: 7px; }
+      .block .fric p.sentence { font-size: 17px; line-height: 26px; }
+      .block.v-lock p.bleft { font-size: 26px; line-height: 34px; min-width: 0; padding: 8px 20px; }
+    }
+    @media (max-height: 620px) {
+      .block { padding-top: 12px; padding-bottom: 12px; }
+      .bcard { gap: 10px; padding-top: 22px; padding-bottom: 18px; }
+      .lock { width: 56px; height: 56px; border-radius: 19px; }
+      .lock svg { width: 26px; height: 26px; }
+      .block h2 { font-size: 26px; line-height: 32px; }
+      .bacts { margin-top: 2px; }
+      .block button.go { min-height: 54px; }
+    }
+    @media (forced-colors: active) {
+      .block h2 { background: none; color: CanvasText; }
+    }
 
     /* ------------------------------------------------------------------------ island: break state */
     .isl.onbreak { --glow: rgba(250,178,25,.7); }
@@ -639,6 +758,8 @@
     .actions button.brkbtn { background: #fab219; border-color: #fab219; color: #1a1200; }
     .actions button.brkbtn:hover { background: #ffc24a; }
     .isl.onbreak:not(.over):not(.bump):not(.enter) { animation: glowbreak 3.6s ease-in-out infinite; }
+    .isl.near:not(.over):not(.bump):not(.enter):not(.onbreak) { animation: glownear 3.6s ease-in-out infinite; }
+    .isl.over:not(.bump):not(.enter) { animation: glowover 3s ease-in-out infinite; }
     @keyframes enter { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
     @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.07); } 100% { transform: scale(1); } }
     @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 14px; } }
@@ -651,8 +772,8 @@
     @keyframes rollout { to { transform: translateY(-100%); opacity: 0; } }
     @keyframes breathe { 0%, 100% { transform: scale(.7); } 50% { transform: scale(1.15); } }
     @keyframes bfade { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes cardin { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
-    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    @keyframes cardin { from { opacity: 0; transform: translateY(18px) scale(.95); } to { opacity: 1; transform: none; } }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
     @keyframes halo { from { opacity: .6; transform: scale(1); } to { opacity: 0; transform: scale(1.6); } }
     @keyframes shackle { 0%, 84%, 100% { transform: translateY(0); } 90% { transform: translateY(-1.6px); } 95% { transform: translateY(.3px); } }
     @keyframes drift1 { to { transform: translate3d(8vmax, 6vmax, 0) scale(1.08); } }
@@ -667,17 +788,46 @@
     @keyframes ringpop { 0% { transform: scale(1); } 45% { transform: scale(1.1); } 100% { transform: scale(1); } }
     @keyframes readypop { 0% { transform: scale(1); } 40% { transform: scale(1.012); } 100% { transform: scale(1); } }
     @keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
-    @keyframes unlockglow { 0%, 100% { box-shadow: 0 0 0 0 rgba(110,231,176,0); } 50% { box-shadow: 0 0 0 5px rgba(110,231,176,.16); } }
+    @keyframes unlockglow {
+      0%, 100% { box-shadow: 0 14px 34px rgba(110,231,176,.2), inset 0 1px 0 rgba(255,255,255,.24), 0 0 0 0 rgba(110,231,176,0); }
+      50% { box-shadow: 0 14px 38px rgba(110,231,176,.34), inset 0 1px 0 rgba(255,255,255,.24), 0 0 0 5px rgba(110,231,176,.14); }
+    }
+    @keyframes drift3 { to { transform: translate3d(-10vmax, 8vmax, 0) scale(1.12); } }
+    @keyframes mote { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 14% { opacity: .6; } 80% { opacity: .25; } 100% { opacity: 0; transform: translate3d(var(--dx), -112vh, 0); } }
+    @keyframes rim { from { background-position: 0 0; } to { background-position: 100% 0; } }
+    @keyframes lockbreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    @keyframes gradflow { from { background-position: 0 0; } to { background-position: 100% 0; } }
+    @keyframes ripple { from { opacity: .55; transform: scale(0); } to { opacity: 0; transform: scale(var(--rs, 14)); } }
+    @keyframes panelin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes charpop { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-3px) scale(1.18); } 100% { transform: none; } }
+    @keyframes curpulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+    @keyframes burst { 0% { opacity: 1; transform: rotate(var(--a)) translateX(30px) scale(1); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(72px) scale(.2); } }
+    @keyframes burstring { 0% { opacity: .9; transform: scale(.7); } 100% { opacity: 0; transform: scale(1.8); } }
+    @keyframes glowbeat { 0%, 100% { opacity: .6; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
+    @keyframes shinebp { 0%, 50% { background-position: -100% 0, 0 0; } 100% { background-position: 200% 0, 0 0; } }
     @keyframes splashout { 0%, 38% { opacity: 1; } 100% { opacity: 0; } }
     @keyframes splashin { 0% { opacity: 0; transform: scale(.9); } 22%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(1.05); } }
     @keyframes pillin { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
     @keyframes barswap { from { opacity: .35; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    @keyframes moreIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes trackshine { 0%, 40% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    @keyframes toastin { from { opacity: 0; transform: translateX(-50%) translateY(14px); } to { opacity: 1; transform: translateX(-50%); } }
+    @keyframes glownear {
+      0%, 100% { box-shadow: inset 0 0 0 1px rgba(250,178,25,.5), 0 0 10px rgba(250,178,25,.14), 0 8px 24px rgba(0,0,0,.45); }
+      50% { box-shadow: inset 0 0 0 1px rgba(250,178,25,.85), 0 0 22px rgba(250,178,25,.34), 0 8px 24px rgba(0,0,0,.45); }
+    }
+    @keyframes glowover {
+      0%, 100% { box-shadow: inset 0 0 0 1px rgba(255,84,84,.7), 0 0 14px rgba(255,70,70,.25), 0 8px 24px rgba(0,0,0,.45); }
+      50% { box-shadow: inset 0 0 0 1px rgba(255,100,100,1), 0 0 28px rgba(255,70,70,.5), 0 8px 24px rgba(0,0,0,.45); }
+    }
     @keyframes glowbreak {
       0%, 100% { box-shadow: inset 0 0 0 1px rgba(250,178,25,.55), 0 0 14px rgba(250,178,25,.22), 0 8px 24px rgba(0,0,0,.45); }
       50% { box-shadow: inset 0 0 0 1px rgba(250,178,25,.95), 0 0 26px rgba(250,178,25,.45), 0 8px 24px rgba(0,0,0,.45); }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
+      .block { animation-duration: .3s !important; } /* the one thing that still happens: a gentle fade in */
+      .rip, .burst, .aura b { display: none; }
     }
   `;
 
@@ -1327,7 +1477,7 @@
       [bels.watch, bels.cont, bels.fric, bels.pips, bels.bpips, bels.pipsText, bels.left, bels.nudge].forEach((el) => { if (el) el.hidden = true; });
       setFixed('');
       bels.go.textContent = 'Reload this page';
-      orphanTimer = setInterval(quietVideos, 300);
+      if (!orphanTimer) orphanTimer = setInterval(quietVideos, 300);
     }
 
     /**
@@ -1338,12 +1488,7 @@
     function blockKeys(e) {
       if (host && e.composedPath().includes(host)) {
         e.stopPropagation(); // the page never sees it; the letter is still typed because nothing cancels it
-        if (e.type === 'keydown' && e.key === 'Escape' && fricOpen && bels) { // Escape folds the challenge away, like "Never mind"
-          e.preventDefault();
-          closeFriction();
-          try { bels.cont.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
-          return;
-        }
+        if (e.type === 'keydown' && e.key === 'Escape' && foldChallenge()) { e.preventDefault(); return; } // Escape folds the unblock steps away (you stay blocked)
         // the event no longer reaches the box itself, so Enter is handled here
         if (e.type === 'keydown' && e.key === 'Enter' && root && bels && root.activeElement === bels.input && !bels.unlock.disabled) {
           e.preventDefault();
@@ -1351,8 +1496,17 @@
         }
         return;
       }
+      if (e.type === 'keydown' && e.key === 'Escape') foldChallenge(); // focus was somewhere else on the page: Escape still folds the steps away
       e.stopImmediatePropagation();
       e.preventDefault();
+    }
+
+    /** Fold the unblock steps away without leaving or unblocking anything. Returns true when there was something to fold. */
+    function foldChallenge() {
+      if (!fricOpen || !bels) return false;
+      closeFriction();
+      try { bels.cont.focus({ preventScroll: true }); } catch (err) { /* ignore */ }
+      return true;
     }
 
     const NS = 'http://www.w3.org/2000/svg';
@@ -1379,6 +1533,26 @@
       return svg;
     }
 
+    /** The little padlock on the Unblock button: its latch lifts when the button is ready. */
+    function svgUnlock() {
+      const svg = svgEl('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' });
+      svg.append(svgEl('rect', { x: 5, y: 11, width: 14, height: 10, rx: 2.5 }), svgEl('path', { class: 'ush', d: 'M8 11V8a4 4 0 0 1 8 0v3' }));
+      return svg;
+    }
+
+    /** A soft ring of light opens where a button is pressed (skipped when the visitor prefers no motion: the style hides it). */
+    function ripple(e) {
+      const b = e.target && e.target.closest ? e.target.closest('button') : null;
+      if (!b || b.disabled || b.classList.contains('fx')) return;
+      const r = b.getBoundingClientRect();
+      const dot = mk('span', 'rip');
+      dot.style.left = (e.clientX - r.left) + 'px';
+      dot.style.top = (e.clientY - r.top) + 'px';
+      dot.style.setProperty('--rs', String(Math.max(6, Math.ceil(Math.max(r.width, r.height) / 12))));
+      b.appendChild(dot);
+      setTimeout(() => dot.remove(), 700);
+    }
+
     const RING_R = 40;
     const RING_C = 2 * Math.PI * RING_R;
 
@@ -1393,8 +1567,9 @@
       mid.append(num, mk('span', 'ru', 'sec'));
       const tick = svgEl('svg', { class: 'rck', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' });
       tick.appendChild(svgEl('path', { d: 'M5 12.5l4.5 4.5L19 7.5' }));
-      wrap.append(svg, mid, tick);
-      return { wrap, prg, num };
+      const head = mk('div', 'rhead');
+      wrap.append(svg, head, mid, tick);
+      return { wrap, prg, num, head };
     }
 
     function labelButton(cls, text, icon) {
@@ -1436,7 +1611,16 @@
       bels = {};
       const aura = mk('div', 'aura');
       aura.setAttribute('aria-hidden', 'true');
-      aura.append(mk('i'), mk('i'));
+      aura.append(mk('i'), mk('i'), mk('i'));
+      for (let k = 0; k < 9; k++) { // a few slow motes of light; fixed numbers so every screen looks the same
+        const m = mk('b');
+        m.style.setProperty('--x', ((k * 37 + 11) % 96) + '%');
+        m.style.setProperty('--s', (3 + (k % 3)) + 'px');
+        m.style.setProperty('--t', (19 + (k * 5) % 13) + 's');
+        m.style.setProperty('--d', '-' + ((k * 7) % 19) + 's');
+        m.style.setProperty('--dx', (((k % 2) ? 1 : -1) * (14 + k * 3)) + 'px');
+        aura.appendChild(m);
+      }
 
       const card = mk('div', 'bcard');
       bels.card = card;
@@ -1481,6 +1665,8 @@
       bels.fric.tabIndex = -1;
       const ring = makeRing();
       bels.ringPrg = ring.prg;
+      bels.ringHead = ring.head;
+      bels.ringWrap = ring.wrap;
       bels.rn = ring.num;
       bels.finfo = mk('p', 'finfo');
       bels.fwait = mk('p', 'fwait');
@@ -1512,13 +1698,17 @@
       bels.ferr.hidden = true;
       const frow = mk('div', 'frow');
       const unlock = labelButton('unlock', 'Unblock');
-      const never = labelButton('stay', 'Never mind');
+      unlock.b.insertBefore(svgUnlock(), unlock.label);
       bels.unlock = unlock.b;
       bels.unlockLabel = unlock.label;
-      bels.never = never.b;
       bels.unlock.disabled = true;
-      frow.append(bels.never, bels.unlock);
-      bels.fric.append(ftop, bels.fwarn, bels.fsent, inwrap, tprog, bels.fhint, bels.ferr, frow);
+      frow.appendChild(bels.unlock);
+      bels.fx = mk('button', 'fx');
+      bels.fx.type = 'button';
+      bels.fx.title = 'Fold these steps away (Esc). You stay blocked.';
+      bels.fx.setAttribute('aria-label', 'Fold the unblock steps away. You stay blocked.');
+      bels.fx.appendChild(svgIcon('M6 6l12 12', 'M18 6L6 18'));
+      bels.fric.append(bels.fx, ftop, bels.fwarn, bels.fsent, inwrap, tprog, bels.fhint, bels.ferr, frow);
       const fin = mk('div', 'fin');
       fin.appendChild(bels.fric);
       bels.ffold = mk('div', 'ffold');
@@ -1534,10 +1724,8 @@
       bels.go.addEventListener('click', () => { if (orphanMode) { location.reload(); return; } location.assign(BLOCK_EXIT[blockPlatform] || 'https://www.youtube.com/'); });
       bels.watch.addEventListener('click', () => { if (blockWatchUrl) location.assign(location.origin + blockWatchUrl); });
       bels.cont.addEventListener('click', openFriction);
-      bels.never.addEventListener('click', () => {
-        closeFriction();
-        try { bels.cont.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
-      });
+      bels.fx.addEventListener('click', foldChallenge);
+      blockEl.addEventListener('pointerdown', ripple);
       bels.input.addEventListener('paste', (e) => e.preventDefault()); // the point is to type it
       bels.input.addEventListener('input', () => {
         setErr(null);
@@ -1573,7 +1761,7 @@
       typing: 'Looking right so far.',
       off: 'Not quite. The underlined letter is the next one.',
       almost: 'Almost there.',
-      ready: 'Ready. You can unblock, or press Never mind and stay on track.',
+      ready: 'Ready. Unblock now, or press Esc to stay blocked.',
     };
 
     /** Live feedback while typing: matching letters light up, a slip is marked kindly, then "almost there" and "ready". */
@@ -1587,19 +1775,28 @@
       while (n < typed.length && n < target.length && typed.charAt(n) === target.charAt(n)) n++;
       const bad = !full && n < typed.length;
       const state = full ? 'ready' : bad ? 'off' : n === 0 ? 'idle' : n / target.length >= 0.75 ? 'almost' : 'typing';
-      const sig = state + n;
+      const live = !bels.input.disabled; // the marker for the next letter only shows once typing is allowed
+      const sig = state + (live ? '+' : '-') + n;
       if (bels.paint === sig) return;
-      const was = bels.paint ? bels.paint.replace(/\d+$/, '') : 'idle';
+      const was = bels.paint ? bels.paint.replace(/[+-]\d+$/, '') : 'idle';
       bels.paint = sig;
       for (let i = 0; i < bels.cells.length; i++) {
         const cl = bels.cells[i].classList;
         cl.toggle('m', i < n);
         cl.toggle('x', bad && i === n);
+        cl.toggle('cur', live && !full && !bad && i === n);
       }
+      bels.unlock.style.setProperty('--p', target.length ? (full ? 1 : n / target.length).toFixed(3) : '0');
       ['typing', 'off', 'almost', 'ready'].forEach((s) => bels.fric.classList.toggle(s, state === s));
       bels.tprog.style.transform = 'scaleX(' + (target.length ? (full ? 1 : n / target.length).toFixed(3) : 0) + ')';
       const hint = HINTS[state];
       if (bels.fhint.textContent !== hint) bels.fhint.textContent = hint;
+      if (state === 'off' && was !== 'off') { // a soft shake of the box for a slip
+        bels.fric.classList.remove('slip');
+        void bels.fric.offsetWidth;
+        bels.fric.classList.add('slip');
+        setTimeout(() => { if (bels) bels.fric.classList.remove('slip'); }, 500);
+      }
       if (state === 'ready' && was !== 'ready') {
         bels.fric.classList.remove('pop');
         void bels.fric.offsetWidth; // restart the little pop
@@ -1664,10 +1861,15 @@
       bels.unlock.disabled = true;
       fricLeft = rules.waitSec;
       bels.ringPrg.style.transition = 'none';
+      bels.ringHead.style.transition = 'none';
       bels.ringPrg.style.strokeDashoffset = RING_C.toFixed(2);
+      bels.ringHead.style.transform = 'rotate(0deg)';
       void bels.ringPrg.getBoundingClientRect();
       bels.ringPrg.style.transition = '';
+      bels.ringHead.style.transition = '';
       bels.fric.classList.remove('done');
+      bels.wasDone = false;
+      bels.unlock.style.setProperty('--p', '0');
       drawFriction(rules.waitSec);
       paintTyping();
       try { bels.fric.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
@@ -1687,7 +1889,7 @@
           if (document.visibilityState !== 'visible') return; // the wait only counts while you are looking at this tab
           fricLeft--;
           drawFriction(wait);
-          if (fricLeft <= 0) { clearInterval(fricTimer); bels.input.disabled = false; bels.input.focus(); }
+          if (fricLeft <= 0) { clearInterval(fricTimer); bels.input.disabled = false; bels.input.focus(); paintTyping(); }
         }, 1000);
       });
     }
@@ -1695,9 +1897,30 @@
     function drawFriction(wait) {
       const done = Math.min(1, Math.max(0, (wait - fricLeft) / wait));
       bels.ringPrg.style.strokeDashoffset = (RING_C * (1 - done)).toFixed(2);
+      bels.ringHead.style.transform = 'rotate(' + (done * 360).toFixed(1) + 'deg)';
       bels.rn.textContent = String(Math.max(0, fricLeft));
       bels.fric.classList.toggle('done', fricLeft <= 0);
+      if (fricLeft <= 0 && !bels.wasDone) burst();
+      bels.wasDone = fricLeft <= 0;
       bels.fwait.textContent = fricLeft > 0 ? 'You can continue in ' + fricLeft + ' s' : 'Now type the sentence:';
+    }
+
+    /** A small burst of light round the ring when the wait is over. */
+    function burst() {
+      if (!bels || !bels.ringWrap) return;
+      const box = mk('div', 'burst');
+      box.setAttribute('aria-hidden', 'true');
+      box.appendChild(mk('b'));
+      const colours = ['#6ee7b0', '#ffffff', 'var(--acc)', '#8cf0c0'];
+      for (let k = 0; k < 12; k++) {
+        const p = mk('i');
+        p.style.setProperty('--a', (k * 30 + 8) + 'deg');
+        p.style.setProperty('--c', colours[k % colours.length]);
+        p.style.animationDelay = (k % 3) * 40 + 'ms';
+        box.appendChild(p);
+      }
+      bels.ringWrap.appendChild(box);
+      setTimeout(() => box.remove(), 1200);
     }
 
     /** Step 2: send the sentence. The worker checks the wait, the sentence and the rules again before it opens a break. */
@@ -1841,7 +2064,7 @@
 
     function nudge(n, resp) {
       const text = message(n.kind, resp);
-      if (n.pause) pause(text, C.PLATFORMS[activePlatform].home);
+      if (n.pause) pause(text, BLOCK_EXIT[activePlatform] || C.PLATFORMS[activePlatform].home);
       else if (isl && isl.style.display !== 'none') note(text);
       else toast(text);
     }
@@ -1867,7 +2090,12 @@
       requestAnimationFrame(frame);
     })();
 
-    return { setIsland, reposition, nudge, note, showBlock, hideBlock, orphanBlock, destroy };
+    /** The counter has nothing true to say once the extension is gone. */
+    function hideIsland() {
+      if (isl) isl.style.display = 'none';
+    }
+
+    return { setIsland, reposition, nudge, note, showBlock, hideBlock, orphanBlock, hideIsland, destroy };
   })();
 
   // -------------------------------------------------------------------- start
@@ -1901,7 +2129,7 @@
       if (changes.stats) { // counts deleted or lowered from the dashboard
         const nv = changes.stats.newValue;
         const day = nv && nv[C.dayKey(new Date())];
-        if (!day || day.r < totals.r) refreshServerState();
+        if (!day || day.r < totals.r || settings.block.hardLimit) refreshServerState(); // with a hard limit another tab may have used it up
       }
     });
   } catch (e) {
@@ -1919,7 +2147,10 @@
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush();
-    else if (!dead) { checkBlock(); render(); ui.reposition(); } // back on this tab: show the current state, not the one from before
+    else if (!dead && !gone) { // back on this tab: show the current state, not the one from before
+      if (settings.block.hardLimit) refreshServerState();
+      checkBlock(); render(); ui.reposition();
+    }
   });
   window.addEventListener('pagehide', flush);
 

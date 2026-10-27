@@ -156,7 +156,8 @@ function blockReply(ok, extra) {
  */
 async function handleLoosen(msg, who, now, eff, limitOver) {
   if (!who.page) return blockReply(false, { why: 'sender' });
-  const proposed = C.normalizeSettings(msg.settings);
+  // only what the user changed is applied, on top of the newest settings (a pause set meanwhile must survive)
+  const proposed = C.normalizeSettings(msg.base && typeof msg.base === 'object' ? C.mergeChanges(C.normalizeSettings(msg.base), C.normalizeSettings(msg.settings), eff) : msg.settings);
   const policy = C.changePolicy(eff, proposed, now);
   if (policy === 'free') {
     if (msg.type === 'loosen') await store.set({ settings: proposed });

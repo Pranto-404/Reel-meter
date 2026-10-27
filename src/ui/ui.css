@@ -173,7 +173,7 @@ a, button, input, select, summary, [tabindex] {
 .btn:hover { background: var(--surface-2); border-color: var(--axis); box-shadow: var(--shadow-1); }
 .btn:active { transform: scale(0.97); }
 .btn[disabled], .btn[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
-.btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-ink); }
+.btn.primary { background: var(--accent-fill) linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)); border-color: var(--accent-fill); color: var(--accent-ink); }
 .btn.primary:hover { filter: brightness(1.1); }
 .btn.danger { color: var(--critical-text); }
 .btn.danger:hover { background: var(--critical-tint); border-color: var(--critical); }
@@ -219,12 +219,14 @@ a, button, input, select, summary, [tabindex] {
 .switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: 12px 0; cursor: pointer; }
 .sw { position: relative; flex: none; width: 44px; height: 26px; }
 .sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
-.sw-ui { position: absolute; inset: 0; border-radius: 99px; background: var(--sw-off); transition: background-color var(--dur-2) var(--ease); }
+.sw-ui { position: absolute; inset: 0; border-radius: 99px; background: var(--sw-off); box-shadow: 0 0 0 0 transparent; transition: background-color var(--dur-2) var(--ease), box-shadow var(--dur-3) var(--ease); }
+.sw:hover .sw-ui { box-shadow: 0 0 0 4px var(--seg-track); }
 .sw-ui::after {
   content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); transition: transform var(--dur-2) var(--ease), width var(--dur-1) var(--ease);
 }
 .sw input:checked + .sw-ui { background: var(--accent-fill); }
+.sw:hover input:checked + .sw-ui { box-shadow: 0 0 0 4px var(--accent-tint); }
 .sw input:checked + .sw-ui::after { transform: translateX(18px); }
 .sw input:active + .sw-ui::after { width: 24px; }
 .sw input:checked:active + .sw-ui::after { transform: translateX(14px); }
@@ -353,6 +355,28 @@ dialog::backdrop { background: rgba(10, 10, 10, 0.5); animation: fadeIn var(--du
 .collapse[data-open="false"] { grid-template-rows: 0fr; opacity: 0; }
 .collapse[data-open="false"] > * { visibility: hidden; transition: visibility 0s linear var(--dur-3); }
 
+/* ----------------------------------------------------------- small touches */
+/* hover lifts only where there is a real pointer; the press still squeezes (see .btn:active) */
+@media (hover: hover) {
+  .btn:not(:active):not([disabled]):not([aria-disabled="true"]):hover { transform: translateY(-1px); }
+  .card { transition: box-shadow var(--dur-3) var(--ease), border-color var(--dur-3) var(--ease); }
+  .card:hover { box-shadow: var(--shadow-2); }
+}
+/* the hero cards carry a slow, faint light in one corner */
+.hero { position: relative; isolation: isolate; }
+.hero::before {
+  content: ""; position: absolute; z-index: -1; width: 260px; height: 260px; right: -70px; top: -120px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, var(--accent), transparent); opacity: 0.13; animation: ambient 16s ease-in-out infinite alternate;
+}
+@keyframes ambient { to { transform: translate3d(-50px, 34px, 0) scale(1.18); } }
+/* fingers need bigger targets than a mouse */
+@media (pointer: coarse) {
+  .btn, .seg button, .day, .fapp { min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .stepper button { width: 44px; height: 44px; }
+  .stepper input { height: 44px; }
+}
+
 /* ---------------------------------------------------- loading and entrance */
 .is-loading .skel, .skel.is-on {
   color: transparent !important; border-radius: 8px; pointer-events: none;
@@ -376,6 +400,7 @@ dialog::backdrop { background: rgba(10, 10, 10, 0.5); animation: fadeIn var(--du
     transition-duration: 0.001ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important;
   }
   .will-reveal { opacity: 1; transform: none; }
+  .hero::before { animation: none; }
   .is-loading .skel, .skel.is-on { animation: none; background: var(--grid); }
 }
 
