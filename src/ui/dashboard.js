@@ -57,7 +57,7 @@
   function buildHours() {
     const host = $('hours');
     for (let i = 0; i < 24; i++) {
-      const b = h('i');
+      const b = h('i', { style: '--k:' + i });
       hourBars.push(b);
       host.appendChild(b);
     }
@@ -76,7 +76,7 @@
     setText($('hero-date'), new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }));
     countTo($('hero-reels'), day.r, fmtInt);
     setText($('hero-unit'), day.r === 1 ? 'reel' : 'reels');
-    setText($('hero-time'), C.formatDuration(day.s));
+    countTo($('hero-time'), day.s, C.formatDuration);
 
     const y = C.getDay(stats, C.addDays(key, -1));
     const showY = !fresh && (y.r || y.s);
@@ -184,6 +184,7 @@
   // -------------------------------------------------------- chart and table
 
   let pane = '';
+  let chartReplay = false; // draw the bars in again the next time (a tab was shown again)
   let tableSig = '';
   const chartEmpty = K.empty('bars', 'No reels in this range',
     'Once you watch some, a bar for each day appears here. Try a longer range if you have been away.');
@@ -217,7 +218,8 @@
       return;
     }
     const limit = metric === 'r' ? settings.dailyReelLimit : settings.dailyMinuteLimit;
-    Ch.columns($('chart'), days, { metric, axes: true, height: 250, limit: limit || 0 });
+    Ch.columns($('chart'), days, { metric, axes: true, height: 250, limit: limit || 0, replay: chartReplay });
+    chartReplay = false;
   }
 
   function renderTable(days) {
@@ -492,36 +494,94 @@
   }
 
   // ------------------------------------------------------------- navigation
+  // One section is shown at a time. The links share a sliding underline, the old section slides out and the new one in,
+  // and the address (#block and so on) always follows, so links, the back button and keyboard use all keep working.
+
+  let current = '';
+  let swapTimer = 0;
+  let revealer = { replay() {} };
+  let nav = null;
+  let ink = null;
+  const navLinks = () => [...document.querySelectorAll('#nav a')];
+  const sectionFromHash = () => { const id = location.hash.slice(1); return SECTIONS.includes(id) ? id : ''; };
+
+  function placeInk() {
+    const a = navLinks().find((x) => x.getAttribute('data-sec') === current);
+    if (!ink || !a || !a.offsetWidth) return;
+    const inset = window.innerWidth <= 560 ? 8 : 12;
+    ink.style.width = Math.max(8, a.offsetWidth - inset * 2) + 'px';
+    ink.style.transform = 'translateX(' + (a.offsetLeft + inset) + 'px)';
+    if (!nav.classList.contains('ink-ready')) requestAnimationFrame(() => nav.classList.add('ink-ready'));
+  }
+
+  /** The things on a section that count up or draw in play again when it is shown again. */
+  function playIn(id) {
+    if (K.reduced()) return;
+    if (id === 'overview') {
+      ['hero-reels', 'hero-time', 'ring-pct', 't-reels', 't-time', 't-avg', 't-rpd'].forEach((x) => K.resetCount($(x)));
+      const fill = $('ring-fill');
+      fill.style.transition = 'none';
+      fill.style.strokeDashoffset = '100';
+      void fill.getBoundingClientRect();
+      fill.style.transition = '';
+      hoursPrimed = false;
+      platRows.replay();
+      chartReplay = true;
+      renderHero();
+      renderOverview();
+    } else if (id === 'privacy') {
+      K.resetCount($('s-days'));
+      renderPrivacy();
+    }
+  }
+
+  function select(id, first) {
+    if (id === current) return;
+    const prev = current ? $(current) : null;
+    const next = $(id);
+    const dir = prev ? (SECTIONS.indexOf(id) > SECTIONS.indexOf(current) ? 1 : -1) : 0;
+    current = id;
+    navLinks().forEach((a) => { if (a.getAttribute('data-sec') === id) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+    placeInk();
+    clearTimeout(swapTimer);
+    const main = $('main');
+    const enter = () => {
+      for (const sid of SECTIONS) if (sid !== id) $(sid).classList.remove('active', 'leaving', 'entering');
+      next.style.setProperty('--dir', String(dir || 1));
+      next.classList.remove('leaving');
+      next.classList.add('active');
+      main.style.minHeight = '';
+      if (first) return;
+      if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'instant' });
+      next.classList.remove('entering');
+      void next.offsetWidth;
+      next.classList.add('entering');
+      revealer.replay(next);
+      playIn(id);
+    };
+    if (!prev || first || K.reduced()) { enter(); return; }
+    main.style.minHeight = main.offsetHeight + 'px'; // the page does not jump while one section leaves and the next arrives
+    prev.classList.add('leaving');
+    swapTimer = setTimeout(enter, 150);
+  }
 
   function initNav() {
     const header = $('top');
-    const links = [...document.querySelectorAll('#nav a')];
+    nav = $('nav');
+    ink = h('span', { class: 'nav-ink', 'aria-hidden': 'true' });
+    nav.appendChild(ink);
+    document.documentElement.classList.add('tabs-on');
+    SECTIONS.forEach((id) => $(id).classList.add('panel'));
+    window.addEventListener('hashchange', () => { const id = sectionFromHash(); if (id) select(id); });
     let ticking = false;
-    const update = () => {
-      ticking = false;
-      const y = header.offsetHeight + 90;
-      let cur = SECTIONS[0];
-      for (const id of SECTIONS) {
-        if ($(id).getBoundingClientRect().top <= y) cur = id;
-      }
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = SECTIONS[SECTIONS.length - 1];
-      links.forEach((a) => {
-        const on = a.getAttribute('data-sec') === cur;
-        if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
-      });
-      header.classList.toggle('scrolled', window.scrollY > 4);
-    };
-    const queue = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
-    window.addEventListener('scroll', queue, { passive: true });
-    window.addEventListener('resize', queue);
-    links.forEach((a) => a.addEventListener('click', () => {
-      links.forEach((x) => x.removeAttribute('aria-current'));
-      a.setAttribute('aria-current', 'true');
-    }));
+    const update = () => { ticking = false; header.classList.toggle('scrolled', window.scrollY > 4); };
+    window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+    window.addEventListener('resize', placeInk);
     const setHdr = () => document.documentElement.style.setProperty('--hdr', header.offsetHeight + 'px');
-    if (self.ResizeObserver) new ResizeObserver(setHdr).observe(header);
+    if (self.ResizeObserver) new ResizeObserver(() => { setHdr(); placeInk(); }).observe(header);
     setHdr();
     update();
+    select(sectionFromHash() || 'overview', true);
   }
 
   // --------------------------------------------------------------------- run
@@ -635,7 +695,7 @@
     buildHours();
     buildHeat();
     buildPerms();
-    K.reveal([...document.querySelectorAll('#hero, .toolbar, .tiles, .chart-card, .grid-2 > .card, #patterns .sec-h, .heat-card, #limits .sec-h, .set, #privacy .sec-h, .privacy, .data-card')]);
+    revealer = K.reveal([...document.querySelectorAll('#hero, .toolbar, .tile, .chart-card, .grid-2 > .card, #patterns .sec-h, .heat-card, #limits .sec-h, .set, #block .sec-h, #blk-status, #blk-apps, .blk-note, #privacy .sec-h, .privacy, .data-card')]);
     initWelcome();
     bind();
     initNav();
@@ -648,8 +708,7 @@
     fillForm(false);
     document.body.classList.remove('is-loading');
     $('main').setAttribute('aria-busy', 'false');
-    const id = location.hash.slice(1);
-    if (SECTIONS.includes(id)) $(id).scrollIntoView({ block: 'start', behavior: 'instant' });
+    placeInk();
   }
 
   $('ver').textContent = '· v' + (chrome.runtime.getManifest().version || 'dev');

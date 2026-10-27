@@ -39,7 +39,7 @@
 
     countTo($('today-reels'), day.r, fmtInt);
     setText($('today-unit'), day.r === 1 ? 'reel' : 'reels');
-    setText($('today-time'), C.formatDuration(day.s));
+    countTo($('today-time'), day.s, C.formatDuration);
 
     const lim = C.evaluateLimits(settings, day);
     $('limit-block').hidden = !lim.hasLimit;

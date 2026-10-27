@@ -71,13 +71,15 @@ const SHOTS = [
     for (const s of SHOTS) {
       await c.send('Emulation.setDeviceMetricsOverride', { width: s.w, height: s.h, deviceScaleFactor: 1, mobile: false });
       await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: s.scheme }] });
-      await c.send('Page.navigate', { url: BASE + s.url });
+      await c.send('Page.navigate', { url: 'about:blank' });
+      // the dashboard shows one section at a time: the address (#patterns, #limits, #block) picks it
+      await c.send('Page.navigate', { url: BASE + s.url + (s.scroll ? '#' + s.scroll : '') });
       await sleep(3500);
       if (s.style) {
         await c.send('Runtime.evaluate', { expression: `(()=>{const e=document.createElement('style');e.textContent=${JSON.stringify(s.style)};document.head.appendChild(e)})()` });
       }
       if (s.scroll) {
-        await c.send('Runtime.evaluate', { expression: `document.getElementById(${JSON.stringify(s.scroll)}).scrollIntoView({block:'start',behavior:'instant'})` });
+        await c.send('Runtime.evaluate', { expression: `window.scrollTo({top:0,behavior:'instant'})` });
       }
       await sleep(2500); // let reveal animations finish
       const shot = await c.send('Page.captureScreenshot', { format: 'png' });

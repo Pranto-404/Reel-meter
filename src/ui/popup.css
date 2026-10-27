@@ -3,19 +3,21 @@ body { width: 340px; padding: 8px 12px 8px; overflow-x: hidden; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; margin-bottom: 6px; }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .brand h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
-.logo { width: 24px; height: 24px; flex: none; }
+.logo { width: 26px; height: 26px; flex: none; border-radius: 8px; box-shadow: 0 2px 8px var(--glow-1); transition: transform 0.4s var(--spring); }
+.brand:hover .logo { transform: rotate(-8deg) scale(1.08); }
 .top-actions { display: flex; align-items: center; gap: 4px; }
 .top-actions .btn { min-height: 32px; padding: 0 12px; }
 .top-actions .btn .ico { width: 14px; height: 14px; }
 main { display: grid; gap: 6px; }
-.card { padding: 10px 12px; animation: fadeUp 0.4s var(--ease) both; }
-main > .card:nth-child(2) { animation-delay: 50ms; }
-main > .card:nth-child(3) { animation-delay: 100ms; }
-main > .card:nth-child(4) { animation-delay: 150ms; }
-main > .card:nth-child(5) { animation-delay: 200ms; }
+.card { padding: 10px 12px; animation: cardIn 0.55s var(--spring) backwards; }
+@keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+main > .card:nth-child(2) { animation-delay: 70ms; }
+main > .card:nth-child(3) { animation-delay: 140ms; }
+main > .card:nth-child(4) { animation-delay: 210ms; }
+main > .card:nth-child(5) { animation-delay: 280ms; }
 
 /* hero */
-.hero { background: linear-gradient(140deg, var(--surface) 40%, var(--hero-tint)); overflow: hidden; }
+.hero { background: radial-gradient(260px 140px at 100% 0%, var(--glow-2), transparent 70%), linear-gradient(140deg, var(--surface) 40%, var(--hero-tint)); overflow: hidden; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; }
 .hero-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 2px; }
 .big { font-size: 48px; line-height: 1; font-weight: 750; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
@@ -27,7 +29,9 @@ main > .card:nth-child(5) { animation-delay: 200ms; }
 .limit-row b { color: var(--ink); }
 .nolimit { margin-top: 10px; }
 .chip .live { width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: pulse 2.4s ease-out infinite; }
+.chip { transition: background-color var(--dur-3) var(--ease), color var(--dur-3) var(--ease); }
 .chip .pause-ico { display: none; }
+.chip[data-state="paused"] .pause-ico { animation: pop 0.4s var(--spring) backwards; }
 .chip[data-state="paused"] { background: var(--warn-tint); color: var(--warn-text); }
 .chip[data-state="paused"] .live { display: none; }
 .chip[data-state="paused"] .pause-ico { display: inline-flex; }

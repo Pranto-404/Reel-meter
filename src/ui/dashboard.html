@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Reel Meter dashboard</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="../../icons/icon32.png">
   <link rel="stylesheet" href="ui.css">
   <link rel="stylesheet" href="dashboard.css">
 </head>
@@ -14,7 +15,7 @@
   <header class="top" id="top">
     <div class="wrap bar">
       <a class="brand" href="#top" aria-label="Reel Meter, back to top">
-        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--accent-fill)"/><path d="M8 21a8 8 0 0 1 16 0" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".55"/><path d="M16 21l4.2-6.4" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="21" r="2" fill="#fff"/></svg>
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><defs><linearGradient id="rm-tile" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2a78d6"/><stop offset="1" stop-color="#0e8a8f"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#rm-tile)"/><circle cx="16" cy="16" r="9.2" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3"/><path class="logo-arc" d="M16 6.8A9.2 9.2 0 1 1 6.8 16" pathLength="100" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle class="logo-bead" cx="6.8" cy="16" r="2.7" fill="#fff"/><path class="logo-play" d="M13.7 12.6v6.8l5.6-3.4z" fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>
         <span>Reel Meter</span>
       </a>
       <nav aria-label="Sections" id="nav">
@@ -78,6 +79,7 @@
           <div class="hero-side">
             <div class="ring" id="ring" role="img" aria-label="Share of today's limit used">
               <svg viewBox="0 0 120 120" aria-hidden="true">
+                <defs><linearGradient id="ring-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--accent-2)"/></linearGradient></defs>
                 <circle class="ring-track" cx="60" cy="60" r="52" />
                 <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="52" pathLength="100" transform="rotate(-90 60 60)" />
               </svg>

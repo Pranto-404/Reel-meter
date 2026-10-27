@@ -3,6 +3,16 @@
 All notable changes to Reel Meter. Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-10-28
+### Added
+- New logo: a blue-to-teal tile with a meter ring and a play triangle, used for the toolbar and tab icons, the dashboard and popup headers, a favicon and the store images. The mark sweeps in once when the dashboard opens.
+- Dashboard motion: choreographed page load, counting numbers, a ring that draws itself in, a sliding section indicator with animated section changes, bars that grow in, a heatmap that fades in as a wave, a restriction-level highlight that glides between cards, springy switches and steppers, and a sticky header that blurs on scroll.
+- Popup motion: cards spring in, the time counts up and the limit meter is blue-to-teal.
+
+### Changed
+- The dashboard now shows one section at a time (Overview, Patterns, Limits, Block, Privacy & data). Links like #block, and the back button, still work.
+- Animations pause in a hidden tab, and reduced-motion drops to quick fades.
+
 ## [1.3.0] - 2026-10-28
 ### Changed
 - New look and motion for the block screen: drifting aurora background, glass card, breathing lock, staggered entrance, ripple on buttons.
@@ -67,6 +77,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 - Counts Shorts, Reels and TikToks and the time spent on them, on-device only. Counter island, popup and dashboard.
 
+[1.3.1]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.3.0
 [1.2.4]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.2.3

@@ -165,8 +165,9 @@
   /** The three level cards are built once (so keyboard focus and the selection animation survive changes). */
   function renderLevels() {
     const host = $('blk-levels');
-    if (host.children.length !== C.BLOCK_LEVELS.length) {
-      host.replaceChildren(...C.BLOCK_LEVELS.map((lv, i) => {
+    if (host.querySelectorAll('.level').length !== C.BLOCK_LEVELS.length) {
+      const hl = h('span', { class: 'level-hl', 'aria-hidden': 'true' });
+      host.replaceChildren(hl, ...C.BLOCK_LEVELS.map((lv, i) => {
         const r = C.levelRules(lv);
         const input = h('input', { type: 'radio', name: 'blk-level', value: lv });
         return h('label', { class: 'level', 'data-level': lv },
@@ -175,7 +176,7 @@
             h('span', { class: 'level-top' },
               h('span', { class: 'level-ico' }, LEVEL_ICONS[lv]()),
               h('span', { class: 'level-t', text: r.label }),
-              h('span', { class: 'level-str', 'aria-hidden': 'true' }, [0, 1, 2].map((k) => h('i', { class: k <= i ? 'on' : '' })))),
+              h('span', { class: 'level-str', 'aria-hidden': 'true' }, [0, 1, 2].map((k) => h('i', { class: k <= i ? 'on' : '', style: '--k:' + k })))),
             h('span', { class: 'level-s', text: r.blurb }),
             h('span', { class: 'level-f' },
               h('span', { class: 'lf' }, K.icon('clock'), r.waitSec + ' s wait'),
@@ -184,7 +185,24 @@
           h('span', { class: 'level-tick', 'aria-hidden': 'true' }, K.icon('check')));
       }));
     }
-    [...host.children].forEach((c) => { c.querySelector('input').checked = c.dataset.level === settings.block.level; });
+    host.querySelectorAll('.level').forEach((c) => { c.querySelector('input').checked = c.dataset.level === settings.block.level; });
+    placeLevelHl();
+  }
+
+  /** One highlight sits under the chosen card and slides (and resizes) to the next one when the choice changes. */
+  let levelsWatched = false;
+  function placeLevelHl() {
+    const host = $('blk-levels');
+    const hl = host.querySelector('.level-hl');
+    const on = host.querySelector('input:checked');
+    const card = on ? on.closest('.level') : null;
+    if (!levelsWatched && self.ResizeObserver) { levelsWatched = true; new ResizeObserver(placeLevelHl).observe(host); }
+    if (!hl || !card || !card.offsetWidth) { host.classList.remove('has-hl'); return; }
+    hl.style.width = card.offsetWidth + 'px';
+    hl.style.height = card.offsetHeight + 'px';
+    hl.style.transform = 'translate(' + card.offsetLeft + 'px,' + card.offsetTop + 'px)';
+    host.classList.add('has-hl');
+    if (!host.classList.contains('ready')) requestAnimationFrame(() => requestAnimationFrame(() => host.classList.add('ready')));
   }
 
   function renderFocusApps() {

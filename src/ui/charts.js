@@ -5,6 +5,7 @@
   const C = self.ReelCore;
   const NS = 'http://www.w3.org/2000/svg';
 
+  let uid = 0;
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
   const instant = () => !!(self.matchMedia && self.matchMedia('(prefers-reduced-motion: reduce)').matches) || document.hidden;
 
@@ -46,7 +47,7 @@
   /**
    * Draw (or update) a column chart in `host`.
    *   days   - [{key, r, s}] oldest first
-   *   opts   - { metric: 'r' | 'm', height, axes, limit, valueLabels }
+   *   opts   - { metric: 'r' | 'm', height, axes, limit, valueLabels, replay }
    * Tooltips are wired by the caller through attachTooltip (data-tip attributes).
    */
   function columns(host, days, opts) {
@@ -73,7 +74,7 @@
 
     const sk = [compact ? 1 : 0, height, n, opts.valueLabels ? 1 : 0].join('|');
     let st = host._rc;
-    const grow = !st || st.sk !== sk;
+    const grow = !st || st.sk !== sk || !!opts.replay; // replay: draw the bars in again from the baseline
     if (!st || grow || st.width !== width) {
       const keep = st && !grow ? st : null;
       if (st && st.cancel) st.cancel();
@@ -161,7 +162,12 @@
     const gGrid = el('g', { 'aria-hidden': 'true' });
     const limitLine = el('line', { class: 'limit-line', x1: m.l, x2: width - m.r, y1: base, y2: base, display: 'none' });
     const limitText = el('text', { class: 'limit-text', x: width - m.r, y: base - 5, 'text-anchor': 'end', display: 'none' }, '');
-    svg.append(gGrid);
+    const gid = 'rg' + (++uid);
+    const defs = el('defs');
+    const grad = el('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 });
+    grad.append(el('stop', { offset: 0, style: 'stop-color:var(--series-1)' }), el('stop', { offset: 1, style: 'stop-color:var(--bar-end)' }));
+    defs.append(grad);
+    svg.append(defs, gGrid);
 
     const band = innerW / n;
     const barW = Math.max(2, Math.min(compact ? 28 : 44, band * 0.62));
@@ -176,7 +182,7 @@
       cx.push(c);
       const grp = el('g', { tabindex: i === n - 1 ? 0 : -1, role: 'img' });
       grp.appendChild(el('rect', { class: 'hit', x: m.l + band * i, y: m.t - 4, width: band, height: g.innerH + m.b + 4, rx: 4 }));
-      const bar = el('path', { class: 'bar', d: '' });
+      const bar = el('path', { class: 'bar' + (i === n - 1 ? ' today' : ''), d: '', style: 'fill:url(#' + gid + ')' });
       grp.appendChild(bar);
       svg.appendChild(grp);
       groups.push(grp);
@@ -283,15 +289,16 @@
       } else if (r.width > 140 && cursorX != null) {
         ax = cursorX;
       }
+      const was = tip.classList.contains('on');
       tip.classList.add('on');
       const w = tip.offsetWidth;
       const hgt = tip.offsetHeight;
       let top = ay - hgt - 10;
       if (top < 8) top = (bar ? ay + 24 : r.bottom + 10);
-      tip.style.left = Math.round(Math.min(window.innerWidth - w - 8, Math.max(8, ax - w / 2))) + 'px';
-      tip.style.top = Math.round(Math.max(8, top)) + 'px';
+      tip.classList.toggle('glide', was); // it slides from one bar to the next, and appears in place the first time
+      tip.style.translate = Math.round(Math.min(window.innerWidth - w - 8, Math.max(8, ax - w / 2))) + 'px ' + Math.round(Math.max(8, top)) + 'px';
     };
-    const hide = () => { current = null; tip.classList.remove('on'); };
+    const hide = () => { current = null; tip.classList.remove('on', 'glide'); };
     root.addEventListener('mouseover', (e) => {
       const t = e.target.closest ? e.target.closest('[data-tip]') : null;
       if (!t) return hide();

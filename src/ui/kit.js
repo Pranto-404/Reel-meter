@@ -93,7 +93,8 @@
     if (el._raf) { cancelAnimationFrame(el._raf); el._raf = 0; }
     const from = prev == null ? 0 : prev;
     if (from === to || instant()) { el._cv = to; setText(el, fmt(to)); return; }
-    const dur = (opts && opts.duration) || (prev == null ? 750 : 380);
+    const dur = (opts && opts.duration) || (prev == null ? 900 : 420);
+    if (prev != null && el.classList.contains('count')) { el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick'); }
     const t0 = performance.now();
     const step = (now) => {
       const k = Math.min(1, (now - t0) / dur);
@@ -104,6 +105,12 @@
     };
     el._cv = from;
     el._raf = requestAnimationFrame(step);
+  }
+
+  /** Forget the last shown value so the next countTo runs from zero again (used when a tab is shown again). */
+  function resetCount(el) {
+    if (el._raf) { cancelAnimationFrame(el._raf); el._raf = 0; }
+    el._cv = null;
   }
 
   /** One toast at a time. host should be an aria-live="polite" container. */
@@ -121,6 +128,7 @@
         b.addEventListener('click', () => { clearTimeout(timer); hide(t); opts.action.onClick(); });
         t.appendChild(b);
       }
+      t.style.setProperty('--life', ((opts.duration || (opts.action ? 9000 : 2400)) / 1000) + 's');
       host.appendChild(t);
       requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('in')));
       timer = setTimeout(() => hide(t), opts.duration || (opts.action ? 9000 : 2400));
@@ -169,7 +177,11 @@
       const cur = num(input.value, 0);
       const mult = repeat > 12 ? 5 : 1;
       const next = Math.min(max, Math.max(min, Math.round((cur + dir * step * mult) / step) * step));
-      if (next !== cur) { input.value = String(next); input.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (next !== cur) {
+        input.value = String(next);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        if (!reduced()) { input.classList.remove('bump'); void input.offsetWidth; input.classList.add('bump'); }
+      }
       sync();
     }
     function stop() {
@@ -208,7 +220,7 @@
       const fill = h('i', { class: 'pb-fill', style: 'background:' + COLORS[p] });
       const reels = h('b', { class: 'count', text: '0' });
       const rest = h('span');
-      const row = h('div', { class: 'pb is-zero', 'data-p': p },
+      const row = h('div', { class: 'pb is-zero', 'data-p': p, style: '--i:' + C.PLATFORM_ORDER.indexOf(p) },
         h('span', { class: 'pb-name' }, h('i', { class: 'dot', style: 'background:' + COLORS[p] }), C.PLATFORMS[p].label),
         h('span', { class: 'pb-track' }, fill),
         h('span', { class: 'pb-num' }, reels, rest));
@@ -217,6 +229,17 @@
     }
     void host.offsetWidth; // so the first fill grows from zero instead of appearing
     return {
+      /** Start the bars and numbers again from empty (used when the tab is shown again). */
+      replay() {
+        for (const p of C.PLATFORM_ORDER) {
+          const r = rows[p];
+          resetCount(r.reels);
+          r.fill.style.transition = 'none';
+          r.fill.style.width = '0%';
+          void r.fill.offsetWidth;
+          r.fill.style.transition = '';
+        }
+      },
       update(totals, key) {
         const val = (p) => (totals[p] ? totals[p][key] || 0 : 0);
         const max = Math.max(1, ...C.PLATFORM_ORDER.map(val));
@@ -242,18 +265,68 @@
       extra || null);
   }
 
-  /** Fade sections up as they scroll into view. Elements stay visible if this cannot run. */
+  /**
+   * Fade cards up as they scroll into view, in the order they appear (a short stagger for a batch that shows at once).
+   * Elements stay visible when this cannot run. Returns { replay(container) } to play the entrance again for the
+   * cards inside a container that has just been shown (hidden cards are not "in view", so nothing flashes).
+   */
   function reveal(nodes) {
-    if (reduced() || !self.IntersectionObserver) return;
+    if (reduced() || !self.IntersectionObserver) return { replay() {} };
     const io = new IntersectionObserver((entries) => {
-      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      let n = 0;
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.style.setProperty('--d', Math.min(n++, 6) * 55 + 'ms');
+        const t = e.target;
+        t.classList.add('in');
+        io.unobserve(t);
+        // once it has settled, hand the element back to its own hover and press styles
+        t._rt = setTimeout(() => { t.classList.remove('will-reveal', 'in'); t.style.removeProperty('--d'); }, 1100);
+      }
     }, { rootMargin: '0px 0px -6% 0px', threshold: 0.04 });
-    nodes.forEach((n, i) => {
-      n.style.setProperty('--d', Math.min(i, 3) * 40 + 'ms');
+    nodes.forEach((n) => {
       n.classList.add('will-reveal');
       io.observe(n);
     });
+    return {
+      replay(container) {
+        for (const n of nodes) {
+          if (!container.contains(n)) continue;
+          clearTimeout(n._rt);
+          n.classList.remove('in');
+          n.classList.add('will-reveal');
+          n.style.transition = 'none';
+          void n.offsetWidth;
+          n.style.transition = '';
+          io.unobserve(n);
+          io.observe(n);
+        }
+      },
+    };
   }
 
-  self.ReelKit = { h, icon, hydrateIcons, setText, countTo, toaster, seg, stepper, platformRows, empty, reveal, reduced, COLORS };
+  /** Sets --mx and --my on the card under the pointer (a soft glow follows it), and rests animations in a hidden tab. */
+  function ambient() {
+    let raf = 0;
+    let last = null;
+    document.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      last = e;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const t = last.target.closest ? last.target.closest('.card, .tile') : null;
+        if (!t) return;
+        const r = t.getBoundingClientRect();
+        t.style.setProperty('--mx', Math.round(last.clientX - r.left) + 'px');
+        t.style.setProperty('--my', Math.round(last.clientY - r.top) + 'px');
+      });
+    }, { passive: true });
+    const vis = () => document.documentElement.classList.toggle('tab-hidden', document.hidden);
+    document.addEventListener('visibilitychange', vis);
+    vis();
+  }
+  ambient();
+
+  self.ReelKit = { h, icon, hydrateIcons, setText, countTo, resetCount, toaster, seg, stepper, platformRows, empty, reveal, reduced, COLORS };
 })();

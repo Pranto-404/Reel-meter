@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Reel Meter",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Counts and limits the Shorts, Reels and TikToks you watch, and can block them. Everything stays on your device.",
   "minimum_chrome_version": "110",
   "icons": {
