@@ -33,7 +33,7 @@ function cdp(url) {
 }
 
 async function wsUrl() {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 160; i++) { // up to 40 s: slow CI machines
     try {
       const list = await (await fetch(`http://127.0.0.1:${DEBUG}/json/list`)).json();
       const page = list.find((t) => t.type === 'page');
