@@ -13,3 +13,6 @@ node_modules/
 Thumbs.db
 .vscode/
 .idea/
+
+# test builds downloaded for the owner's phone (never committed)
+phone-test/
