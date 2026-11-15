@@ -53,6 +53,9 @@ jobs:
   result:
     name: CI result
     if: always()
+    defaults:
+      run:
+        working-directory: .  # this job checks nothing out, so extension/ does not exist here
     needs: [test, harness]
     runs-on: ubuntu-latest
     steps:
