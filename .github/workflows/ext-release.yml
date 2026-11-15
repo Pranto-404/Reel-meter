@@ -1,0 +1,40 @@
+name: Extension release
+
+# Push a tag such as ext-v1.4.1 to publish a GitHub release of the extension with the store packages attached.
+# (Releases up to 1.4.0 were tagged vX.Y.Z; Android releases will use android-vX.Y.Z.)
+on:
+  push:
+    tags: ['ext-v*']
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: extension
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tag must match the manifest version
+        run: |
+          v=$(node -p "require('./manifest.json').version")
+          if [ "refs/tags/ext-v$v" != "$GITHUB_REF" ]; then echo "Tag $GITHUB_REF does not match manifest version $v"; exit 1; fi
+      - run: npm test
+      - run: npm run build
+      - name: Release notes from the changelog
+        run: |
+          v=$(node -p "require('./manifest.json').version")
+          awk -v v="$v" '$0 ~ "^## \[" v "\]" {on=1; next} on && /^## \[/ {exit} on {print}' CHANGELOG.md > notes.md
+          test -s notes.md || echo "See CHANGELOG.md." > notes.md
+          cat notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --title "Reelity extension ${GITHUB_REF_NAME#ext-v}" --notes-file notes.md
