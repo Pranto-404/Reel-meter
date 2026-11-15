@@ -13,8 +13,63 @@ defaults:
     working-directory: extension
 
 jobs:
+  # Decides which products to check. A path filter on the workflow itself would leave the required "CI result"
+  # check pending forever, so the filtering happens here and skipped jobs count as passed below.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      extension: ${{ steps.detect.outputs.extension }}
+      android: ${{ steps.detect.outputs.android }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compare with the base
+        id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          base=""
+          if [ "$EVENT" = pull_request ]; then
+            base="$PR_BASE"
+          elif [ "$EVENT" = push ] && [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base="$BEFORE"  # empty or all zeros for a new branch, unknown after a force push: then check everything
+          fi
+
+          extension=false
+          android=false
+          if [ -z "$base" ]; then
+            echo "No usable base commit: checking everything."
+            extension=true
+            android=true
+          else
+            files=$(git diff --name-only "$base" HEAD)
+            echo "Changed files since $base:"
+            echo "$files"
+            while IFS= read -r f; do
+              case "$f" in
+                .github/* | shared/*) extension=true; android=true ;;
+                extension/src/core.js) extension=true; android=true ;;  # the rules the Android port follows
+                extension/*) extension=true ;;
+                android/*) android=true ;;
+              esac
+            done <<< "$files"
+          fi
+
+          echo "extension=$extension android=$android"
+          echo "extension=$extension" >> "$GITHUB_OUTPUT"
+          echo "android=$android" >> "$GITHUB_OUTPUT"
+
   test:
     name: Unit tests and build
+    needs: changes
+    if: needs.changes.outputs.extension == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +85,8 @@ jobs:
 
   harness:
     name: Real-code browser harness
+    needs: changes
+    if: needs.changes.outputs.extension == 'true'
     runs-on: ubuntu-latest
     # Runs the real content script and worker against a fake page in headless Chrome (about 90 seconds).
     steps:
@@ -48,18 +105,35 @@ jobs:
           CHROME: /usr/bin/google-chrome
           HARNESS_NO_SANDBOX: '1'
 
+  android:
+    name: Android
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    uses: ./.github/workflows/android.yml
+
   # One check that sums up the jobs above. The branch rule requires only this one, so jobs can be added,
-  # renamed or split by product later without ever locking main.
+  # renamed or split by product later without ever locking main. Skipped jobs (product unchanged) count as passed.
   result:
     name: CI result
     if: always()
     defaults:
       run:
         working-directory: .  # this job checks nothing out, so extension/ does not exist here
-    needs: [test, harness]
+    needs: [changes, test, harness, android]
     runs-on: ubuntu-latest
     steps:
-      - name: All jobs passed
+      - name: All jobs passed or were skipped
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          TEST: ${{ needs.test.result }}
+          HARNESS: ${{ needs.harness.result }}
+          ANDROID: ${{ needs.android.result }}
         run: |
-          echo "test=${{ needs.test.result }} harness=${{ needs.harness.result }}"
-          [ "${{ needs.test.result }}" = success ] && [ "${{ needs.harness.result }}" = success ]
+          echo "changes=$CHANGES test=$TEST harness=$HARNESS android=$ANDROID"
+          [ "$CHANGES" = success ] || exit 1
+          for r in "$TEST" "$HARNESS" "$ANDROID"; do
+            case "$r" in
+              success | skipped) ;;
+              *) exit 1 ;;  # failure or cancelled
+            esac
+          done
