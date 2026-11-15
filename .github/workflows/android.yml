@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  # Must match distributionUrl in android/gradle/wrapper/gradle-wrapper.properties once the wrapper is committed.
-  GRADLE_VERSION: '9.7.1'
-
 defaults:
   run:
     working-directory: android
@@ -30,50 +26,14 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # Writes the Gradle cache only on main; other branches and pull requests read it.
-      # TODO: once the wrapper is committed, drop gradle-version (the wrapper decides) and add a
-      # gradle/actions/wrapper-validation step before this one.
+      # The committed wrapper jar must be the official one before anything runs it.
+      - uses: gradle/actions/wrapper-validation@v6
+
+      # Writes the Gradle cache only on main; other branches and pull requests read it. The wrapper picks the
+      # Gradle version (android/gradle/wrapper/gradle-wrapper.properties).
       - uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: ${{ env.GRADLE_VERSION }}
           cache-provider: basic
-
-      # The wrapper (gradlew, gradlew.bat, gradle/wrapper/) is generated from an empty directory, so it does not
-      # depend on the build itself working. TODO: delete this step once the files are committed.
-      - name: Generate the Gradle wrapper (not committed yet)
-        id: wrapper
-        if: hashFiles('android/gradlew') == ''
-        run: |
-          sum=$(curl -fsSL "https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip.sha256")
-          tmp=$(mktemp -d)
-          touch "$tmp/settings.gradle.kts"
-          gradle -p "$tmp" --quiet wrapper --gradle-version "$GRADLE_VERSION" --distribution-type bin \
-            --gradle-distribution-sha256-sum "$sum"
-          cp -R "$tmp/gradlew" "$tmp/gradlew.bat" "$tmp/gradle" .
-          cat gradle/wrapper/gradle-wrapper.properties
-
-      # The shared debug key (not secret) lets each CI debug APK install over the previous one.
-      # TODO: delete this step once android/app/debug.keystore is committed.
-      - name: Create the shared debug key (not committed yet)
-        id: debugkey
-        if: hashFiles('android/app/debug.keystore') == ''
-        run: |
-          keytool -genkeypair -keystore app/debug.keystore -storepass android -keypass android \
-            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10950 -dname "CN=Android Debug,O=Android,C=US"
-
-      # Download this artifact and commit its files under android/ (see android/README.md).
-      - name: Upload the generated files to commit
-        if: steps.wrapper.outcome == 'success' || steps.debugkey.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-files-to-commit
-          path: |
-            android/gradlew
-            android/gradlew.bat
-            android/gradle/wrapper/
-            android/app/debug.keystore
-          if-no-files-found: ignore
-          retention-days: 14
 
       - name: Test, lint, check privacy and build
         run: >
