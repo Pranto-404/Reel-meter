@@ -1,0 +1,96 @@
+{
+  "function": "levelRules",
+  "about": "Rules of each restriction level; a missing or unknown level falls back to \"balanced\".",
+  "cases": [
+    {
+      "input": {
+        "level": "gentle"
+      },
+      "expect": {
+        "waitSec": 10,
+        "breakMin": 5,
+        "strikes": 5,
+        "strikeWindowMin": 60,
+        "lockHours": 1,
+        "sentence": "I choose to keep scrolling",
+        "timedUnlock": true,
+        "settingsChange": "challenge"
+      }
+    },
+    {
+      "input": {
+        "level": "balanced"
+      },
+      "expect": {
+        "waitSec": 30,
+        "breakMin": 5,
+        "strikes": 3,
+        "strikeWindowMin": 180,
+        "lockHours": 6,
+        "sentence": "I choose to keep scrolling",
+        "timedUnlock": true,
+        "settingsChange": "challenge"
+      }
+    },
+    {
+      "input": {
+        "level": "strict"
+      },
+      "expect": {
+        "waitSec": 60,
+        "breakMin": 5,
+        "strikes": 2,
+        "strikeWindowMin": 1440,
+        "lockHours": 12,
+        "sentence": "I know this is against my plan and I choose to scroll anyway",
+        "timedUnlock": false,
+        "settingsChange": "never"
+      }
+    },
+    {
+      "input": {
+        "level": ""
+      },
+      "expect": {
+        "waitSec": 30,
+        "breakMin": 5,
+        "strikes": 3,
+        "strikeWindowMin": 180,
+        "lockHours": 6,
+        "sentence": "I choose to keep scrolling",
+        "timedUnlock": true,
+        "settingsChange": "challenge"
+      }
+    },
+    {
+      "input": {
+        "level": "nonsense"
+      },
+      "expect": {
+        "waitSec": 30,
+        "breakMin": 5,
+        "strikes": 3,
+        "strikeWindowMin": 180,
+        "lockHours": 6,
+        "sentence": "I choose to keep scrolling",
+        "timedUnlock": true,
+        "settingsChange": "challenge"
+      }
+    },
+    {
+      "input": {
+        "level": null
+      },
+      "expect": {
+        "waitSec": 30,
+        "breakMin": 5,
+        "strikes": 3,
+        "strikeWindowMin": 180,
+        "lockHours": 6,
+        "sentence": "I choose to keep scrolling",
+        "timedUnlock": true,
+        "settingsChange": "challenge"
+      }
+    }
+  ]
+}
