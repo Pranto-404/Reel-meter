@@ -1,0 +1,23 @@
+name: PR title
+
+# Pull request titles become the squash-merge commit message, so they follow Conventional Commits,
+# for example "feat(android): count reels" or "fix(extension): keep the break after reload".
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Title follows Conventional Commits
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "$TITLE"
+          echo "$TITLE" | grep -Eq '^(feat|fix|docs|chore|ci|test|refactor|perf|build|revert)(\((extension|android|shared|repo)\))?!?: .{3,}$' \
+            || { echo "Use a title like: feat(android): count reels"; exit 1; }

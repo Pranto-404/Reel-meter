@@ -43,3 +43,16 @@ jobs:
         env:
           CHROME: /usr/bin/google-chrome
           HARNESS_NO_SANDBOX: '1'
+
+  # One check that sums up the jobs above. The branch rule requires only this one, so jobs can be added,
+  # renamed or split by product later without ever locking main.
+  result:
+    name: CI result
+    if: always()
+    needs: [test, harness]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All jobs passed
+        run: |
+          echo "test=${{ needs.test.result }} harness=${{ needs.harness.result }}"
+          [ "${{ needs.test.result }}" = success ] && [ "${{ needs.harness.result }}" = success ]
