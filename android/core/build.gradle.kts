@@ -19,8 +19,14 @@ kotlin {
 
 dependencies {
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.serialization.json)
 }
+
+// The shared test vectors (generated from extension/src/core.js) live outside the Gradle build.
+val vectorsDir = rootDir.resolve("../shared/test-vectors")
 
 tasks.test {
     useJUnit()
+    inputs.dir(vectorsDir).withPropertyName("sharedVectors")
+    systemProperty("reelity.vectors", vectorsDir.absolutePath)
 }
