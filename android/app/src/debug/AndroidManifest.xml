@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug build only: the M1 detection spike. Nothing here reaches the release (Play) build. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Package visibility for the target apps only (no QUERY_ALL_PACKAGES): shows which are installed and their
+         version, which the captures need because view ids change between app versions. Keep in step with
+         TargetApps in :core (a unit test checks it). -->
+    <queries>
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.instagram.lite" />
+        <package android:name="com.zhiliaoapp.musically" />
+        <package android:name="com.ss.android.ugc.trill" />
+        <package android:name="com.zhiliaoapp.musically.go" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.facebook.lite" />
+    </queries>
+
+    <application>
+        <activity
+            android:name=".lab.DetectionLabActivity"
+            android:exported="false"
+            android:label="@string/lab_title"
+            android:theme="@style/Theme.Reelity" />
+
+        <!-- Exported only because the system binds it; BIND_ACCESSIBILITY_SERVICE means only the system can. -->
+        <service
+            android:name=".a11y.DetectionService"
+            android:exported="true"
+            android:label="@string/a11y_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/detection_service" />
+        </service>
+
+        <!-- Shares the exported captures file with the share sheet; nothing else is reachable. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.captures"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/capture_paths" />
+        </provider>
+    </application>
+</manifest>

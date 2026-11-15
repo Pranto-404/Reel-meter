@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug build only (detection spike). Every string here also exists in values-bn. -->
+<resources>
+    <string name="lab_open">Open detection lab</string>
+    <string name="lab_title">Detection lab</string>
+    <string name="lab_test_build">Test build. Only for checking how reels can be recognised.</string>
+
+    <string name="a11y_service_label">Reelity detection (test)</string>
+    <string name="a11y_service_description">Test build. Looks only inside YouTube, Instagram, TikTok and Facebook (and their Lite apps) to see which screen is open: the names and positions of screen parts, never words. Nothing leaves your phone unless you share the file yourself.</string>
+
+    <string name="lab_status_title">Detection service</string>
+    <string name="lab_status_running">On and working</string>
+    <string name="lab_status_enabled_not_running">On, but Android has not started it yet. Reopen this screen, or turn it off and on again.</string>
+    <string name="lab_status_off">Off</string>
+    <string name="lab_turn_on">Turn on detection</string>
+
+    <string name="lab_restricted_title">If Android says “Restricted setting”</string>
+    <string name="lab_restricted_body">Android 13 and newer block Accessibility for apps installed from a file. Try to turn on Reelity once, then open App info, tap the three dots (⋮) at the top and choose “Allow restricted settings”. Then turn it on again.</string>
+    <string name="lab_open_app_info">Open App info</string>
+
+    <string name="lab_aapm_title">Advanced Protection</string>
+    <string name="lab_aapm_body">If Advanced Protection is on (Settings &gt; Security and privacy &gt; Advanced Protection), Android 17 does not let apps like this test build use Accessibility, and it blocks installing apps from files. Turn it off while you test, and back on afterwards if you want.</string>
+
+    <string name="lab_live_title">Live</string>
+    <string name="lab_live_none">No reel app seen yet. Open YouTube, Instagram, TikTok or Facebook.</string>
+    <string name="lab_live_app">Last app: %1$s</string>
+    <string name="lab_live_snapshot">Last snapshot %1$d s ago: %2$d screen parts, %3$d with ids</string>
+    <string name="lab_live_inputs">Last 10 s: %1$d scrolls, %2$d taps, %3$d content changes</string>
+    <string name="lab_live_guess">First guess: %1$s</string>
+    <string name="lab_guess_reel">reel</string>
+    <string name="lab_guess_not_reel">not a reel</string>
+    <string name="lab_no_snapshot">No snapshot yet.</string>
+
+    <string name="lab_overlay_switch">Show Reel / Not a reel buttons over the apps</string>
+    <string name="lab_label_reel">This is a reel</string>
+    <string name="lab_label_not_reel">Not a reel</string>
+    <string name="lab_label_hint">Labels the last snapshot. Easier: use the buttons shown over the app while you scroll.</string>
+    <string name="lab_saved">Saved: %1$s, %2$s</string>
+    <string name="lab_storage_full">Storage for captures is full. Export and delete them first.</string>
+
+    <string name="lab_captures_title">Labelled captures</string>
+    <string name="lab_captures_row">%1$s: %2$d reel, %3$d not a reel</string>
+    <string name="lab_captures_none">None yet.</string>
+    <string name="lab_export">Export and share</string>
+    <string name="lab_export_chooser">Send the captures file</string>
+    <string name="lab_delete">Delete captures</string>
+    <string name="lab_delete_confirm_title">Delete all captures?</string>
+    <string name="lab_delete_confirm_body">This cannot be undone. Export first if you have not sent them yet.</string>
+    <string name="lab_delete_confirm">Delete</string>
+    <string name="lab_cancel">Cancel</string>
+
+    <string name="overlay_reel">Reel</string>
+    <string name="overlay_not_reel">Not a reel</string>
+
+    <!-- Prominent disclosure (docs/android/reviews/USER-TEST.md section 3), adapted for the test build. -->
+    <string name="disclosure_title">Let Reelity notice when a reel is open</string>
+    <string name="disclosure_intro">To count reels, and later to stop them when you ask it to, Reelity uses an Android feature called Accessibility.</string>
+    <string name="disclosure_checks_label">What it checks</string>
+    <string name="disclosure_checks_body">Only inside YouTube, Instagram, TikTok and Facebook (and their Lite apps), and only which screen is open, for example “the reels player”.</string>
+    <string name="disclosure_never_label">What it never reads</string>
+    <string name="disclosure_never_body">Words on the screen, messages, comments, captions, passwords, anything you type, who you follow or which videos you watch. It does not record your screen.</string>
+    <string name="disclosure_does_label">What it does</string>
+    <string name="disclosure_does_body">This test build only notices which screen is open, so that reels can be recognised. Counting and the stop screen come in later builds.</string>
+    <string name="disclosure_test_label">Only in this test build</string>
+    <string name="disclosure_test_body">When you tap “Reel” or “Not a reel”, it saves the layout of that screen: the internal names of its parts and where they are, plus your phone model and the app version. Never words or pictures. The file stays on this phone until you share it yourself.</string>
+    <string name="disclosure_data_label">Where your data goes</string>
+    <string name="disclosure_data_body">Nowhere by itself. Reelity has no internet permission, so it cannot send anything.</string>
+    <string name="disclosure_headsup_label">Heads-up</string>
+    <string name="disclosure_headsup_body">Android will then ask whether Reelity can have “full control” of your device. Android shows this to every app that uses Accessibility. Reelity is limited to the apps above.</string>
+    <string name="disclosure_off">You can turn this off any time in Settings &gt; Accessibility.</string>
+    <string name="disclosure_agree">Agree and turn on</string>
+    <string name="disclosure_not_now">Not now</string>
+</resources>

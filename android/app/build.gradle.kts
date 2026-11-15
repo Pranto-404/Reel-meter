@@ -82,8 +82,9 @@ dependencies {
     testImplementation(libs.junit)
 }
 
-// Privacy check (ARCHITECTURE section 11): reads the merged manifest of the release build and fails the build if
-// the app asks for any permission, allows backups, or exports anything but the launcher activity.
+// Privacy check (ARCHITECTURE section 11): reads the merged manifest of each build type and fails the build if the
+// app asks for any permission, allows backups, or exports anything but the launcher activity and an accessibility
+// service that only the system can bind. android:permission on a component is a protection, not a permission request.
 abstract class PrivacyCheck : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
@@ -127,11 +128,15 @@ abstract class PrivacyCheck : DefaultTask() {
         if (application.attr("dataExtractionRules").isEmpty()) problems += "android:dataExtractionRules is missing"
 
         val launcher = setOf(".MainActivity", "${namespace.get()}.MainActivity")
+        fun mayBeExported(tag: String, element: Element): Boolean = when (tag) {
+            "activity" -> element.attr("name") in launcher
+            "service" -> element.attr("permission") == "android.permission.BIND_ACCESSIBILITY_SERVICE"
+            else -> false
+        }
         for (tag in listOf("activity", "activity-alias", "service", "receiver", "provider")) {
             for (element in elements(tag)) {
-                val name = element.attr("name")
-                if (element.attr("exported") == "true" && !(tag == "activity" && name in launcher)) {
-                    problems += "<$tag android:name=\"$name\"> must not be exported"
+                if (element.attr("exported") == "true" && !mayBeExported(tag, element)) {
+                    problems += "<$tag android:name=\"${element.attr("name")}\"> must not be exported"
                 }
             }
         }
@@ -141,19 +146,25 @@ abstract class PrivacyCheck : DefaultTask() {
                 "Privacy check failed for ${mergedManifest.get().asFile}:\n" + problems.joinToString("\n") { "  - $it" },
             )
         }
-        logger.lifecycle("Privacy check passed: no permissions, no backup, only MainActivity exported.")
+        logger.lifecycle("Privacy check passed for ${mergedManifest.get().asFile.parentFile.name}.")
     }
 }
 
+val privacyCheck = tasks.register("privacyCheck") {
+    group = "verification"
+    description = "Runs the privacy check on the merged manifest of every build type."
+}
+tasks.named("check") { dependsOn(privacyCheck) }
+
 androidComponents {
-    onVariants(selector().withBuildType("release")) { variant ->
-        val privacyCheck = tasks.register<PrivacyCheck>("privacyCheck") {
+    onVariants { variant ->
+        val variantCheck = tasks.register<PrivacyCheck>("privacyCheck${variant.name.replaceFirstChar { it.uppercase() }}") {
             group = "verification"
-            description = "Checks permissions, backup and exported components in the merged release manifest."
+            description = "Checks permissions, backup and exported components in the merged ${variant.name} manifest."
             mergedManifest.set(variant.artifacts.get(SingleArtifact.MERGED_MANIFEST))
             applicationId.set(variant.applicationId)
             namespace.set(variant.namespace)
         }
-        tasks.named("check") { dependsOn(privacyCheck) }
+        privacyCheck.configure { dependsOn(variantCheck) }
     }
 }

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lab_open">ডিটেকশন ল্যাব খুলুন</string>
+    <string name="lab_title">ডিটেকশন ল্যাব</string>
+    <string name="lab_test_build">পরীক্ষামূলক সংস্করণ। শুধু রিল কীভাবে চেনা যায় তা যাচাই করার জন্য।</string>
+
+    <string name="a11y_service_label">Reelity ডিটেকশন (পরীক্ষা)</string>
+    <string name="a11y_service_description">পরীক্ষামূলক সংস্করণ। শুধু YouTube, Instagram, TikTok ও Facebook (এবং এদের Lite অ্যাপ)-এর ভেতরে দেখে কোন স্ক্রিন খোলা আছে: স্ক্রিনের অংশগুলোর নাম ও অবস্থান, কখনো কোনো লেখা নয়। আপনি নিজে ফাইল শেয়ার না করলে কিছুই আপনার ফোনের বাইরে যায় না।</string>
+
+    <string name="lab_status_title">ডিটেকশন সার্ভিস</string>
+    <string name="lab_status_running">চালু আছে এবং কাজ করছে</string>
+    <string name="lab_status_enabled_not_running">চালু, কিন্তু Android এখনো এটি শুরু করেনি। এই স্ক্রিনটি আবার খুলুন, অথবা একবার বন্ধ করে আবার চালু করুন।</string>
+    <string name="lab_status_off">বন্ধ</string>
+    <string name="lab_turn_on">ডিটেকশন চালু করুন</string>
+
+    <string name="lab_restricted_title">Android যদি “Restricted setting” বলে</string>
+    <string name="lab_restricted_body">Android 13 ও এর পরের সংস্করণে ফাইল থেকে ইনস্টল করা অ্যাপের জন্য Accessibility আটকে থাকে। একবার Reelity চালু করার চেষ্টা করুন, তারপর App info খুলে ওপরের তিন বিন্দুতে (⋮) চাপুন এবং “Allow restricted settings” বেছে নিন। এরপর আবার চালু করুন।</string>
+    <string name="lab_open_app_info">App info খুলুন</string>
+
+    <string name="lab_aapm_title">Advanced Protection</string>
+    <string name="lab_aapm_body">Advanced Protection চালু থাকলে (Settings &gt; Security and privacy &gt; Advanced Protection), Android 17 এই পরীক্ষামূলক সংস্করণের মতো অ্যাপকে Accessibility ব্যবহার করতে দেয় না, আর ফাইল থেকে অ্যাপ ইনস্টল করাও আটকে দেয়। পরীক্ষার সময় এটি বন্ধ রাখুন; চাইলে পরে আবার চালু করুন।</string>
+
+    <string name="lab_live_title">এখনকার অবস্থা</string>
+    <string name="lab_live_none">এখনো কোনো রিল অ্যাপ দেখা যায়নি। YouTube, Instagram, TikTok বা Facebook খুলুন।</string>
+    <string name="lab_live_app">শেষ অ্যাপ: %1$s</string>
+    <string name="lab_live_snapshot">শেষ স্ন্যাপশট %1$d সেকেন্ড আগে: স্ক্রিনের %2$dটি অংশ, এর মধ্যে %3$dটির আইডি আছে</string>
+    <string name="lab_live_inputs">গত ১০ সেকেন্ডে: %1$d বার স্ক্রল, %2$d বার ট্যাপ, %3$d বার কনটেন্ট বদল</string>
+    <string name="lab_live_guess">প্রাথমিক অনুমান: %1$s</string>
+    <string name="lab_guess_reel">রিল</string>
+    <string name="lab_guess_not_reel">রিল নয়</string>
+    <string name="lab_no_snapshot">এখনো কোনো স্ন্যাপশট নেই।</string>
+
+    <string name="lab_overlay_switch">অ্যাপের ওপর “রিল / রিল নয়” বোতাম দেখান</string>
+    <string name="lab_label_reel">এটি রিল</string>
+    <string name="lab_label_not_reel">রিল নয়</string>
+    <string name="lab_label_hint">শেষ স্ন্যাপশটে লেবেল দেয়। আরও সহজ উপায়: স্ক্রল করার সময় অ্যাপের ওপর দেখানো বোতামগুলো ব্যবহার করুন।</string>
+    <string name="lab_saved">সংরক্ষিত: %1$s, %2$s</string>
+    <string name="lab_storage_full">ক্যাপচার রাখার জায়গা ভরে গেছে। আগে এক্সপোর্ট করে সেগুলো মুছে ফেলুন।</string>
+
+    <string name="lab_captures_title">লেবেল দেওয়া ক্যাপচার</string>
+    <string name="lab_captures_row">%1$s: রিল %2$d, রিল নয় %3$d</string>
+    <string name="lab_captures_none">এখনো নেই।</string>
+    <string name="lab_export">এক্সপোর্ট ও শেয়ার করুন</string>
+    <string name="lab_export_chooser">ক্যাপচার ফাইলটি পাঠান</string>
+    <string name="lab_delete">ক্যাপচার মুছুন</string>
+    <string name="lab_delete_confirm_title">সব ক্যাপচার মুছবেন?</string>
+    <string name="lab_delete_confirm_body">এটি আর ফেরানো যাবে না। এখনো না পাঠিয়ে থাকলে আগে এক্সপোর্ট করুন।</string>
+    <string name="lab_delete_confirm">মুছুন</string>
+    <string name="lab_cancel">বাতিল</string>
+
+    <string name="overlay_reel">রিল</string>
+    <string name="overlay_not_reel">রিল নয়</string>
+
+    <string name="disclosure_title">রিল খোলা হলে Reelity-কে তা বুঝতে দিন</string>
+    <string name="disclosure_intro">রিল গুনতে, এবং পরে আপনি চাইলে সেগুলো থামাতে, Reelity Android-এর Accessibility নামের একটি সুবিধা ব্যবহার করে।</string>
+    <string name="disclosure_checks_label">যা দেখে</string>
+    <string name="disclosure_checks_body">শুধু YouTube, Instagram, TikTok ও Facebook (এবং এদের Lite অ্যাপ)-এর ভেতরে, এবং শুধু কোন স্ক্রিন খোলা আছে, যেমন “রিল প্লেয়ার”।</string>
+    <string name="disclosure_never_label">যা কখনো পড়ে না</string>
+    <string name="disclosure_never_body">স্ক্রিনের লেখা, মেসেজ, কমেন্ট, ক্যাপশন, পাসওয়ার্ড, আপনি যা টাইপ করেন, আপনি কাকে ফলো করেন বা কোন ভিডিও দেখেন। এটি আপনার স্ক্রিন রেকর্ড করে না।</string>
+    <string name="disclosure_does_label">যা করে</string>
+    <string name="disclosure_does_body">এই পরীক্ষামূলক সংস্করণ শুধু খেয়াল করে কোন স্ক্রিন খোলা আছে, যাতে রিল চেনা যায়। রিল গোনা আর থামানোর স্ক্রিন আসবে পরের সংস্করণগুলোতে।</string>
+    <string name="disclosure_test_label">শুধু এই পরীক্ষামূলক সংস্করণে</string>
+    <string name="disclosure_test_body">আপনি “রিল” বা “রিল নয়” চাপলে এটি ওই স্ক্রিনের গঠন সংরক্ষণ করে: অংশগুলোর ভেতরের নাম ও সেগুলো কোথায় আছে, সঙ্গে আপনার ফোনের মডেল ও অ্যাপের সংস্করণ। কখনো কোনো লেখা বা ছবি নয়। আপনি নিজে শেয়ার না করা পর্যন্ত ফাইলটি এই ফোনেই থাকে।</string>
+    <string name="disclosure_data_label">আপনার তথ্য কোথায় যায়</string>
+    <string name="disclosure_data_body">নিজে থেকে কোথাও যায় না। Reelity-র ইন্টারনেট পারমিশন নেই, তাই এটি কিছুই পাঠাতে পারে না।</string>
+    <string name="disclosure_headsup_label">আগে থেকে জেনে রাখুন</string>
+    <string name="disclosure_headsup_body">এরপর Android জিজ্ঞেস করবে Reelity আপনার ডিভাইসের “সম্পূর্ণ নিয়ন্ত্রণ” পেতে পারে কিনা। Accessibility ব্যবহার করে এমন সব অ্যাপের জন্যই Android এটি দেখায়। Reelity শুধু ওপরের অ্যাপগুলোর মধ্যেই সীমাবদ্ধ।</string>
+    <string name="disclosure_off">Settings &gt; Accessibility থেকে যেকোনো সময় এটি বন্ধ করতে পারবেন।</string>
+    <string name="disclosure_agree">সম্মত, চালু করুন</string>
+    <string name="disclosure_not_now">এখন নয়</string>
+</resources>

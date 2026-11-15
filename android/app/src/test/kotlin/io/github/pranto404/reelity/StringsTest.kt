@@ -22,9 +22,12 @@ class StringsTest {
 
     @Test
     fun banglaHasEveryTranslatableString() {
-        assertEquals(
-            translatableNames("src/main/res/values/strings.xml"),
-            translatableNames("src/main/res/values-bn/strings.xml"),
-        )
+        for (sourceSet in listOf("main", "debug")) {
+            assertEquals(
+                "strings of src/$sourceSet",
+                translatableNames("src/$sourceSet/res/values/strings.xml"),
+                translatableNames("src/$sourceSet/res/values-bn/strings.xml"),
+            )
+        }
     }
 }
