@@ -1,5 +1,7 @@
 # Reelity: handoff notes (read this first after a context reset)
 
+> **Latest (2026-11-15):** M1 detection spike merged (PR 13): debug-only accessibility service + Detection lab + disclosure screen. Owner phone: Nothing Phone (3a), Android 17 (issue 9). The debug APK was downloaded to D:eel appphone-testeelity-test.apk (git-ignored) and sent to the owner. Waiting for: the owner installs it, labels reel / not-reel screens in each app, exports the captures and sends the JSON file; then write the real Detector rules in :core from those captures (M1 done), then M2. Repo was renamed to github.com/Pranto-404/Reelity (origin updated). Release AAB is about 2.1 MB.
+>
 > M0 (repo restructure) is done: extension in `extension/`, Android skeleton in `android/` (built only by CI; the debug APK and unsigned AAB are artifacts of the "Android build" job), shared rule tests in `shared/test-vectors/`, one required check "CI result", per-product tags `ext-vX.Y.Z` / `android-vX.Y.Z`, labels, milestones M0-M6 and owner issues 8-10. The GitHub CLI is installed and signed in (from Git Bash: "/c/Program Files/GitHub CLI/gh.exe"). Next: M1 detection spike (needs the owner's phone, issue 9).
 >
 > Since 2026-11-15 the extension lives in `extension/` (run npm commands there, load that folder unpacked) and its docs in `docs/extension/`; the Android plan is in `docs/android/`. Paths below that start at the repo root now start at `extension/`.
