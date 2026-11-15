@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The full Reelity tile for in-app use; identical to the inline SVG logo of the extension pages. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="32dp"
+    android:height="32dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+    <path android:pathData="M9,0H23A9,9 0,0 1,32 9V23A9,9 0,0 1,23 32H9A9,9 0,0 1,0 23V9A9,9 0,0 1,9 0Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="2"
+                android:startY="2"
+                android:endX="30"
+                android:endY="30">
+                <item android:offset="0" android:color="#FF2A78D6" />
+                <item android:offset="1" android:color="#FF0E8A8F" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M16,6.8A9.2,9.2 0,1 1,16 25.2A9.2,9.2 0,1 1,16 6.8"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.28" />
+    <path
+        android:pathData="M16,6.8A9.2,9.2 0,1 1,6.8 16"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M4.1,16a2.7,2.7 0,1 0,5.4 0a2.7,2.7 0,1 0,-5.4 0"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M13.7,12.6v6.8l5.6,-3.4z"
+        android:fillColor="#FFFFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineJoin="round" />
+</vector>

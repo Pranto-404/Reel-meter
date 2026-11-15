@@ -1,3 +1,7 @@
 * text=auto eol=lf
 *.png binary
 *.zip binary
+gradlew eol=lf
+*.bat eol=crlf
+*.jar binary
+*.keystore binary
