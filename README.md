@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="icons/icon128.png" alt="Reel Meter icon" width="96" height="96">
+<img src="icons/icon128.png" alt="Reelity icon" width="96" height="96">
 
-# Reel Meter
+# Reelity
 
 **Count your Shorts, Reels and TikToks. Block them when you want your time back.**
 Private by design: everything stays on your device.
@@ -24,7 +24,7 @@ Private by design: everything stays on your device.
 
 ## Why
 
-Short videos are built to be hard to stop. Reel Meter gives you honest numbers first, then gentle friction: a live counter, daily limits, and an optional blocker that makes you pause, wait and type a sentence before you continue. It works on **YouTube Shorts, Instagram Reels, TikTok and Facebook Reels** in Chrome, Edge, Brave and Firefox.
+Short videos are built to be hard to stop. Reelity gives you honest numbers first, then gentle friction: a live counter, daily limits, and an optional blocker that makes you pause, wait and type a sentence before you continue. It works on **YouTube Shorts, Instagram Reels, TikTok and Facebook Reels** in Chrome, Edge, Brave and Firefox.
 
 It never reads your screen, video titles, accounts or comments, and it has no way to send data anywhere.
 
@@ -125,7 +125,7 @@ More: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/ARCHITECTURE.md](docs/ARCHITEC
 | Counter is there but you cannot see it | It sits at the top centre of the reel. Change **Counter position** in the dashboard, or drag it. |
 | Count stays at 0 | A reel counts after 2 seconds of playing, only while the video plays and the tab is visible. Check the app is ticked under "Apps to track". |
 | "I need to continue" shows "Something went wrong (…)" | Remove the extension and **Load unpacked** again. Browsers can keep a stuck copy of an unpacked extension after many reloads. |
-| Still wrong | Right-click the page, Inspect, Console, and look for red lines mentioning Reel Meter. The extension's card also has an **Errors** button. |
+| Still wrong | Right-click the page, Inspect, Console, and look for red lines mentioning Reelity. The extension's card also has an **Errors** button. |
 
 ## Known limits
 
@@ -145,4 +145,4 @@ More: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/ARCHITECTURE.md](docs/ARCHITEC
 
 [CONTRIBUTING.md](CONTRIBUTING.md) · report security problems privately via [SECURITY.md](SECURITY.md) · released under the [MIT License](LICENSE).
 
-Reel Meter is not affiliated with, endorsed by, or sponsored by YouTube, Google, Instagram, Facebook, Meta or TikTok.
+Reelity is not affiliated with, endorsed by, or sponsored by YouTube, Google, Instagram, Facebook, Meta or TikTok.

@@ -1,6 +1,6 @@
 # Architecture
 
-Reel Meter is a Manifest V3 extension in plain JavaScript. There is no build step, no dependencies and no network access.
+Reelity is a Manifest V3 extension in plain JavaScript. There is no build step, no dependencies and no network access.
 
 ```
             ┌──────────────────────────┐

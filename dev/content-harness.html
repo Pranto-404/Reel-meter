@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Reel Meter content-script harness</title>
+<title>Reelity content-script harness</title>
 <!-- Dev only. Runs the REAL content.js and background.js together in a normal page, with a fake chrome API,
      a fake location (so it believes it is on youtube.com / tiktok.com) and a compressed clock, then checks
      the end-to-end behaviour: counting, timing, idle, pause, nudges, limit overlay, snooze.
@@ -976,7 +976,7 @@
   await advance(150); // the break runs out
   await real(300);
   check('N: an orphaned page with blocking set up brings the block back when the break ends, with a reload notice',
-    !!blockEl() && /Reel Meter was updated/.test(blockEl().textContent) && islandHidden() && errors.length === errBefore, blockEl() && blockEl().textContent.slice(0, 60));
+    !!blockEl() && /Reelity was updated/.test(blockEl().textContent) && islandHidden() && errors.length === errBefore, blockEl() && blockEl().textContent.slice(0, 60));
   check('no script error was thrown during the whole run', errors.length === 0, errors.slice(0, 3).join(' | '));
   out(failures ? 'fail' : 'pass', '\n' + (failures ? failures + ' FAILED' : 'ALL CHECKS PASSED'));
   window.__done = { failures };

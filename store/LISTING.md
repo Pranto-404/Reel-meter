@@ -1,7 +1,7 @@
 # Store listing: copy and paste
 
 ## Name
-Reel Meter
+Reelity
 
 ## Short description (max 132 characters; this is also `description` in the manifest)
 Counts and limits the Shorts, Reels and TikToks you watch, and can block them. Everything stays on your device.
@@ -11,7 +11,7 @@ Productivity (Edge: Productivity; Firefox: Other or Social & Communication)
 
 ## Detailed description
 
-Reel Meter shows you how much short-form video you actually watch, helps you cut down, and can block reels when you want a break.
+Reelity shows you how much short-form video you actually watch, helps you cut down, and can block reels when you want a break.
 
 Open a Short, Reel or TikTok and a small island at the top of the video counts up as you go: how many reels, and for how long. Tap it for today's total, your daily limit and a pause button. The popup and dashboard show your day, your week, which app takes the most time, and when you scroll the most.
 
@@ -47,7 +47,7 @@ PRIVATE BY DESIGN
 HOW COUNTING WORKS
 A reel counts after it has played for 2 seconds. Time counts only while a video is on screen and playing in a visible tab, and stops when you have not touched the page for 2 minutes. A reel that loops is counted once. The rules can be changed in settings.
 
-Reel Meter is not affiliated with YouTube, Google, Instagram, Facebook, Meta or TikTok.
+Reelity is not affiliated with YouTube, Google, Instagram, Facebook, Meta or TikTok.
 
 ## Single purpose (Chrome Web Store, Privacy practices tab)
 Help the user manage short-form video on YouTube, Instagram, TikTok and Facebook: count the videos watched and the time spent, show those totals, and optionally limit or block them.

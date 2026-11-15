@@ -1,4 +1,4 @@
-# Reel Meter for Android: architecture
+# Reelity for Android: architecture
 
 Written 2026-11-15 by the architect, revised the same day after the QA review (`reviews/QA.md`, "Q<n>") and the user-type
 test (`reviews/USER-TEST.md`, "U"). Decision-oriented; nothing is built yet. Order, scope and dates live in
@@ -77,23 +77,23 @@ M1 spike finds stable reel signals; otherwise the app picker labels them **"app 
 
 Standalone, scrollable, both buttons always visible, Back = "Not now", reachable later from Settings > "Permissions and
 privacy", separate from every other notice, never only in the privacy policy. Content, in plain words (U §3):
-- **"Let Reel Meter notice when a reel is open."** It uses Android's **Accessibility** feature, only inside YouTube,
+- **"Let Reelity notice when a reel is open."** It uses Android's **Accessibility** feature, only inside YouTube,
   Instagram, TikTok and Facebook, and only to see *which screen* is open (for example "the reels player").
 - **Never reads:** words on the screen, messages, comments, captions, passwords, anything you type, who you follow or which
   videos you watch. No screen recording.
-- **Does:** counts reels and minutes; if you turn on blocking, shows Reel Meter's stop screen or goes **Back or Home** for you.
+- **Does:** counts reels and minutes; if you turn on blocking, shows Reelity's stop screen or goes **Back or Home** for you.
 - **Not covered:** YouTube in a browser, reels inside other apps' built-in browsers.
 - **Data:** only daily totals on this phone; no internet permission, so nothing can be sent.
-- **Heads-up:** Android will next ask whether Reel Meter may have "full control" / "view and control screen". Android shows
-  this for every Accessibility app; Reel Meter is limited to the apps above.
-- Off any time in Settings > Accessibility; Reel Meter then shows app time only. Buttons **Agree and turn on** / **Not now**.
-Usage-access screen (shorter): "See how long you spend in each app. Android's Usage access tells Reel Meter which app was open
+- **Heads-up:** Android will next ask whether Reelity may have "full control" / "view and control screen". Android shows
+  this for every Accessibility app; Reelity is limited to the apps above.
+- Off any time in Settings > Accessibility; Reelity then shows app time only. Buttons **Agree and turn on** / **Not now**.
+Usage-access screen (shorter): "See how long you spend in each app. Android's Usage access tells Reelity which app was open
 and for how long, nothing inside it. Stays on this phone." Buttons **Turn on (1 step)** / **Skip**.
 
 ### What we submit
 
 - **Accessibility declaration:** not an accessibility tool; purpose "App functionality"; data collected or shared through the
-  API: **No**. Text: *"Reel Meter is a digital wellbeing app. With the user's consent its AccessibilityService, limited to
+  API: **No**. Text: *"Reelity is a digital wellbeing app. With the user's consent its AccessibilityService, limited to
   YouTube, Instagram, TikTok and Facebook (and their Lite apps), detects when a short-video screen is open using only package
   names, window bounds and view resource ids, never text. It counts short videos and time and, only if the user enables
   blocking, shows the app's own block screen or performs Back/Home. No data leaves the device; the app has no internet
@@ -107,7 +107,7 @@ and for how long, nothing inside it. Stays on this phone." Buttons **Turn on (1 
   all active tracks [S4].
 - **Data safety:** no data collected or shared. Privacy policy on GitHub Pages. **Audience 18+**, category Productivity,
   no ads, no IAP.
-- **Listing:** line 1 "No internet permission: Reel Meter cannot send anything"; line 2 explains Accessibility in ~20 words;
+- **Listing:** line 1 "No internet permission: Reelity cannot send anything"; line 2 explains Accessibility in ~20 words;
   title ≤ 30 characters without third-party trademarks (O2).
 
 ## 4. Project layout (`android/`, Gradle Kotlin DSL, version catalog)
@@ -147,7 +147,7 @@ Firebase, OkHttp/Retrofit, Glance. Charts use Compose `Canvas`; ~12 vector icons
 | **UsageReader** | `UsageStatsManager.queryEvents` on demand (dashboard, day close, health check); never polls. |
 | **BlockActivity / BlockOverlay** | Plan A: full-screen Compose activity in its own task. Plan B: `TYPE_ACCESSIBILITY_OVERLAY` window (plain Views, no draw-over permission) sized to the reel window, used in split screen/PiP or when the activity cannot start. |
 | **PauseActivity** | 10-second breathing pause at the limit (if enabled); dismissable. |
-| **Notifications** | Silent channels: "Reel #1 counted" (once), optional quiet "Today: 34 reels · 21 min" updated only when leaving a reel screen, nudges (max one per type per limit), "Reel Meter was stopped: Fix it" (max one a day). |
+| **Notifications** | Silent channels: "Reel #1 counted" (once), optional quiet "Today: 34 reels · 21 min" updated only when leaving a reel screen, nudges (max one per type per limit), "Reelity was stopped: Fix it" (max one a day). |
 | **ServiceHealth + BrandGuides** | Detects a killed service and runs the "Fix it" flow (below). |
 | **MainActivity** | Onboarding, dashboard, limits, block settings, focus, schedules, privacy (export, delete), detection health, diagnostics. |
 
@@ -173,7 +173,7 @@ saving, the rule is shown in one sentence with a clock time ("3 unblocks in 3 ho
 - "Enabled" = our component is in `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` (readable without permission).
   "Running" = ReelService connected in this process (a process-wide flag) and a heartbeat (last event or connect time).
 - Enabled but not running when the UI opens, or Usage access shows ≥ 10 min in a counted app today with no reel window seen
-  since the last heartbeat ⇒ dashboard banner and at most one notification a day: **"Your phone stopped Reel Meter. Fix it
+  since the last heartbeat ⇒ dashboard banner and at most one notification a day: **"Your phone stopped Reelity. Fix it
   (2 taps)"** ⇒ the brand guide for battery/autostart.
 - BrandGuides (short text + drawing, from dontkillmyapp steps rewritten): Xiaomi/Redmi/POCO, Samsung, **TECNO, Infinix, itel**
   (HiOS/XOS incl. "Power Marathon" and short-video optimisation), Oppo/realme/OnePlus, vivo, Walton, Symphony, Huawei/Honor,
@@ -214,11 +214,11 @@ reel match is on screen (re-checked from `getWindows()` each tick, which also de
    share links, rotation, unfold). BlockActivity is `excludeFromRecents`, own `taskAffinity`, `exported=false`.
 4. **Back on the block screen = "Leave reels"** (go Home) through an enabled `OnBackPressedCallback` (predictive back on
    targetSdk 36 never calls `onBackPressed`). "Leave reels" is the first, largest button. The overlay's buttons are "Leave
-   reels" and "Open Reel Meter to continue" (a tap, so starting our activity is allowed).
+   reels" and "Open Reelity to continue" (a tap, so starting our activity is allowed).
 5. "I need to continue": Engine records the start with `elapsedRealtime`; the wait counts only while BlockActivity is resumed;
    sentence check, `unlockCheck`, `applyUnlock` run in Engine; on success the activity finishes and the reel is back.
    Sentence field: no suggestions, no autocorrect, paste blocked, sentence pinned above the keyboard, fits 200% font on 360 dp.
-6. Full restriction copy says plainly: "You can still turn Reel Meter off in Android settings." Nothing hides or protects the
+6. Full restriction copy says plainly: "You can still turn Reelity off in Android settings." Nothing hides or protects the
    accessibility toggle or uninstall [S1].
 7. **Latency budget:** detect ⇒ block visible p95 ≤ 500 ms on `:fakereels` (timestamps asserted in the instrumented test);
    ≤ 1 s and no audio after 1 s on real phones.
@@ -368,7 +368,7 @@ Size levers: R8 full mode, `isShrinkResources`, `localeFilters += listOf("en", "
 | # | Decision | Recommendation |
 |---|---|---|
 | O1 | minSdk | **26 (Android 8.0)**; 28 only if M1 shows gaps on 26-27. |
-| O2 | Permanent app id and Play title (≤ 30 chars, no "Shorts"/"Reels" trademarks in the title) | **`io.github.pranto404.reelmeter`**, title **"Reel Meter: Reel Counter"**; "block reels" goes in the short description. |
+| O2 | Permanent app id and Play title (≤ 30 chars, no "Shorts"/"Reels" trademarks in the title) | **`io.github.pranto404.reelity`**, title **"Reelity: Reel Counter"**; "block reels" goes in the short description. |
 | O3 | Facebook and the Lite apps in v1 | **Best effort**: counted where M1 finds stable signals, otherwise "app time only". |
 | O4 | Live counter over other apps | **v1.1**; v1 has the quiet count notification and "Reel #1 counted". |
 | O5 | Bangla at launch | **Yes if the owner's ~250 translated strings are ready by M5**; strings are externalised from day one either way. |
@@ -386,7 +386,7 @@ Settled since the first draft: storage = JSON files (lead), Usage access = optio
   Bangla UI explains the sentence and shows it.
 - U §6 cuts (schedules, 90-day charts, loosening challenge): not cut; the logic already exists and is covered by vectors.
   Full restriction is shown under "More levels" in the picker.
-- U title "Reel Meter: Reels & Shorts Blocker": 34 characters and uses trademarks; see O2.
+- U title "Reelity: Reels & Shorts Blocker": 34 characters and uses trademarks; see O2.
 
 ## Sources
 

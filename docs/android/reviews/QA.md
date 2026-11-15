@@ -112,9 +112,9 @@ QA officer, 2026-11-15. Scope: both design docs, checked against `README.md`, `d
 
 ## Minor
 
-18. **Name too long.** A D6 "Reel Meter: Shorts & Reels counter" = 34 chars; Play titles are max 30
+18. **Name too long.** A D6 "Reelity: Shorts & Reels counter" = 34 chars; Play titles are max 30
     (https://support.google.com/googleplay/android-developer/answer/9898842). "Shorts" is a YouTube trademark: e.g.
-    "Reel Meter: reel counter".
+    "Reelity: reel counter".
 19. **Package lists disagree.** A §3: `<queries>` "7 package names" vs 5 in `packageNames`. List all 7 explicitly; state that
     Facebook Lite / TikTok Lite / Instagram Lite (very common in our first market) are "not supported" unless the spike says
     otherwise, and show that in-app.

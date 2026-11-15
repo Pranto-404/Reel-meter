@@ -702,7 +702,7 @@
     try {
       await load();
     } catch (e) {
-      console.error('Reel Meter: could not read storage', e);
+      console.error('Reelity: could not read storage', e);
     }
     renderAll();
     fillForm(false);

@@ -1,5 +1,5 @@
 /*
- * Reel Meter - background worker.
+ * Reelity - background worker.
  *
  * Receives small "N seconds, M reels on <platform>" updates from the content
  * script, adds them to local daily totals, keeps the toolbar badge current and
@@ -252,7 +252,7 @@ function handlePeek() {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || !msg || typeof msg !== 'object') {
-    console.log('Reel Meter worker: message ignored (sender ' + (sender && sender.id) + ', this extension ' + chrome.runtime.id + ')');
+    console.log('Reelity worker: message ignored (sender ' + (sender && sender.id) + ', this extension ' + chrome.runtime.id + ')');
     return false;
   }
   if (msg.type === 'flush') {
@@ -268,11 +268,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (['unlock-start', 'unlock', 'end-break', 'focus', 'loosen-start', 'loosen'].includes(msg.type)) {
-    console.log('Reel Meter worker: ' + msg.type + ' from ' + (sender.url || (sender.tab && sender.tab.url) || '?'));
-    handleBlock(msg, sender).then((r) => { console.log('Reel Meter worker: ' + msg.type + ' answered ' + JSON.stringify(r).slice(0, 120)); sendResponse(r); }, (e) => { console.error('Reel Meter worker error', e && e.stack); sendResponse({ ok: false, why: 'error', detail: String((e && e.message) || e).slice(0, 100) }); });
+    console.log('Reelity worker: ' + msg.type + ' from ' + (sender.url || (sender.tab && sender.tab.url) || '?'));
+    handleBlock(msg, sender).then((r) => { console.log('Reelity worker: ' + msg.type + ' answered ' + JSON.stringify(r).slice(0, 120)); sendResponse(r); }, (e) => { console.error('Reelity worker error', e && e.stack); sendResponse({ ok: false, why: 'error', detail: String((e && e.message) || e).slice(0, 100) }); });
     return true;
   }
-  console.log('Reel Meter worker: unknown message type ' + msg.type);
+  console.log('Reelity worker: unknown message type ' + msg.type);
   return false;
 });
 

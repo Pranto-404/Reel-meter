@@ -1,6 +1,6 @@
 # Security policy
 
-Reel Meter runs on YouTube, Instagram, TikTok and Facebook pages and is built so that no data leaves the device.
+Reelity runs on YouTube, Instagram, TikTok and Facebook pages and is built so that no data leaves the device.
 
 ## Reporting a vulnerability
 

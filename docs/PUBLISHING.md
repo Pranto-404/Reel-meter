@@ -1,4 +1,4 @@
-# Publishing Reel Meter
+# Publishing Reelity
 
 Everything below is prepared in this folder. Fees and review times come from the stores' own documentation as of October 2026; check the linked pages before you pay or submit, because stores change them.
 
@@ -14,7 +14,7 @@ Only you can:
 1. **Pick a contact email** and put it in `store/PRIVACY.md` (also fill in the date). Use an email you will keep: Chrome does not let you change the developer email later.
 2. **Host the privacy policy at a public web address.** Chrome requires a link. The simplest free way is GitHub Pages (a repository with `PRIVACY.md` or an `index.html`), or any page on a site you own.
 3. **Replace the Firefox add-on id** in `manifest.json` (`browser_specific_settings.gecko.id`, currently `reel-meter@example.local`) with an email-style id you control, for example `reel-meter@yourdomain.com`. It must stay the same for every future version.
-4. **Check the name "Reel Meter" is free** by searching each store. If another extension uses it, pick another name in `manifest.json` and `store/LISTING.md`.
+4. **Check the name "Reelity" is free** by searching each store. If another extension uses it, pick another name in `manifest.json` and `store/LISTING.md`.
 5. Create the store accounts below (they need your identity and, for Chrome, a payment).
 6. Decide on a licence if you publish the source (for example MIT). None has been chosen for you.
 
@@ -83,7 +83,7 @@ Every upload to a store needs a higher version number than the last one. Change 
 
 Common rejection causes and where this extension stands:
 
-| Reviewers look for | Reel Meter |
+| Reviewers look for | Reelity |
 |---|---|
 | Broad permissions such as `<all_urls>` or `tabs` | Only `storage` and `alarms`, and four named sites |
 | Obfuscated or remote code | None: plain readable JavaScript, no remote code, no network access |

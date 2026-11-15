@@ -1,5 +1,5 @@
 /*
- * Reel Meter - core logic.
+ * Reelity - core logic.
  *
  * Pure functions only: no DOM, no chrome.* calls. The same file runs in the
  * content script, the background worker, the extension pages and Node tests.

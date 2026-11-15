@@ -1,5 +1,5 @@
 /*
- * Reel Meter - content script.
+ * Reelity - content script.
  *
  * Runs on YouTube, Instagram, TikTok and Facebook. Once a second it asks three
  * questions: am I on a short-video page, is a video on screen and playing, and
@@ -898,7 +898,7 @@
       ensure();
       isl = mk('div', 'isl');
       isl.setAttribute('role', 'group');
-      isl.setAttribute('aria-label', 'Reel Meter. Tap for details, drag to move, double-click to put it back.');
+      isl.setAttribute('aria-label', 'Reelity. Tap for details, drag to move, double-click to put it back.');
       els = {};
 
       const bar = mk('div', 'bar');
@@ -1472,7 +1472,7 @@
     function orphanBlock() {
       if (!blockShown || !bels) { destroy(); return; }
       orphanMode = true;
-      bels.title.textContent = 'Reel Meter was updated';
+      bels.title.textContent = 'Reelity was updated';
       bels.text.textContent = 'Reload this page to keep your block going. Until then reels stay stopped here.';
       [bels.watch, bels.cont, bels.fric, bels.pips, bels.bpips, bels.pipsText, bels.left, bels.nudge].forEach((el) => { if (el) el.hidden = true; });
       setFixed('');

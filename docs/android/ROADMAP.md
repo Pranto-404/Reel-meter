@@ -1,4 +1,4 @@
-# Reel Meter: repository and Android roadmap
+# Reelity: repository and Android roadmap
 
 Written 2026-11-15 by the project manager; revised the same day after the QA review (`reviews/QA.md`) and the user-type test
 (`reviews/USER-TEST.md`). Plain language, decision-first. The technical design lives in [ARCHITECTURE.md](ARCHITECTURE.md):
@@ -27,7 +27,7 @@ is re-synced in the same PR.** Google Play facts were checked on the date above;
 ### Target tree
 
 ```
-README.md              hub: what Reel Meter is, two product cards, privacy promise, links
+README.md              hub: what Reelity is, two product cards, privacy promise, links
 LICENSE  SECURITY.md  CONTRIBUTING.md  .editorconfig  .gitattributes  .gitignore
 .github/
   workflows/  ci.yml (detect changes + calls + "CI result" gate)  extension.yml  android.yml (reusable)
@@ -183,7 +183,7 @@ closed-test group, scripted sessions reported through issue forms. **Owner:** de
    verify your Android device with the Play Console app. Verification can take days.
 4. **Arrange M1 phones:** yours plus borrowed TECNO/Infinix/itel, Xiaomi and Samsung phones (an hour each is enough).
 5. **M1 install, in this order:** download the debug APK from the CI page; allow "Install unknown apps" for the browser;
-   try to turn on Reel Meter in Accessibility once (Android blocks it); then App info > menu > **Allow restricted settings**;
+   try to turn on Reelity in Accessibility once (Android blocks it); then App info > menu > **Allow restricted settings**;
    turn it on; do the same for Usage access if Android blocks it too; run the script; send the report.
 6. **Check the Bangla strings** (about 250) during M2.
 7. **Recruit 15-20 testers** by the end of M3 (Google accounts, Android phones, several brands) in a Google Group.
@@ -211,7 +211,7 @@ closed-test group, scripted sessions reported through issue forms. **Owner:** de
 ## Open owner decisions
 
 1. Your phone's brand, model and Android version, and which borrowed phones (TECNO/Infinix/itel, Xiaomi, Samsung) you can get.
-2. Permanent package name (`io.github.pranto404.reelmeter` proposed) and a Play title of 30 characters or less.
+2. Permanent package name (`io.github.pranto404.reelity` proposed) and a Play title of 30 characters or less.
 3. May Android be stricter than the extension against clock tricks (waits and lockouts measured on the phone's uptime clock)?
 4. Default level when blocking is first turned on: Less restriction for the first week (recommended) or Restricted?
 5. Who translates the Bangla strings: you, or a translator you trust (the agents draft, a native speaker checks)?

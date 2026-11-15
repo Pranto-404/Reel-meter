@@ -1,7 +1,11 @@
 # Changelog
 
-All notable changes to Reel Meter. Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+All notable changes to Reelity (called Reel Meter before 1.4.0). Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
+
+## [1.4.0] - 2026-11-15
+### Changed
+- The extension is now called **Reelity** (it was Reel Meter). Only the name you see changes: your counts, settings and blocks are kept, and nothing else behaves differently.
 
 ## [1.3.1] - 2026-10-28
 ### Added
@@ -77,6 +81,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 - Counts Shorts, Reels and TikToks and the time spent on them, on-device only. Counter island, popup and dashboard.
 
+[1.4.0]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.4.0
 [1.3.1]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.3.0
 [1.2.4]: https://github.com/Pranto-404/Reel-meter/releases/tag/v1.2.4

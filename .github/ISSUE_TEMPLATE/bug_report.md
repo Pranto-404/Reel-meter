@@ -13,7 +13,7 @@ labels: bug
 2.
 
 **Environment**
-- Reel Meter version (popup footer):
+- Reelity version (popup footer):
 - Browser and version:
 - Site (YouTube / Instagram / TikTok / Facebook):
 - Restriction level (Less / Restricted / Full):

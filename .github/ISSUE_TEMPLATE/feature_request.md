@@ -8,4 +8,4 @@ labels: enhancement
 
 **Your idea**
 
-Reel Meter keeps everything on your device and never reads what you watch. Ideas that need a server, an account or reading page content will not be accepted.
+Reelity keeps everything on your device and never reads what you watch. Ideas that need a server, an account or reading page content will not be accepted.

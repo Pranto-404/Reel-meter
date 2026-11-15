@@ -79,7 +79,7 @@ if (require.main === module) {
   const i = process.argv.indexOf('--out');
   const out = i > -1 ? path.resolve(process.argv[i + 1]) : path.join(root, 'dist');
   const r = build(out);
-  console.log('Reel Meter ' + r.version);
+  console.log('Reelity ' + r.version);
   for (const [name, t] of Object.entries(r.targets)) {
     console.log('  ' + name.padEnd(8) + t.files + ' files, ' + (t.bytes / 1024).toFixed(1) + ' KB  ' + path.relative(root, t.zip));
   }

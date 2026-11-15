@@ -1,17 +1,17 @@
-# Reel Meter privacy policy
+# Reelity privacy policy
 
 _Last updated: [DATE]_
 
-Reel Meter is a browser extension that counts the short videos you watch (YouTube Shorts, Instagram Reels, TikTok and Facebook Reels) and the time you spend on them. It is built so that your data never leaves your device.
+Reelity is a browser extension that counts the short videos you watch (YouTube Shorts, Instagram Reels, TikTok and Facebook Reels) and the time you spend on them. It is built so that your data never leaves your device.
 
-## What Reel Meter does not do
+## What Reelity does not do
 
 - It does not send any data to the developer, to any server, or to anyone else. It makes no network requests, and its pages are blocked from doing so by the extension's content security policy (`connect-src 'none'`).
 - It has no account, no sign-in, no analytics, no advertising, no tracking and no remote code.
 - It does not read or record video titles, channels, accounts, comments, messages, search terms, your browsing history, or what is on your screen. It does not take screenshots or use your camera or microphone.
 - It does not run on any website other than YouTube, Instagram, TikTok and Facebook.
 
-## What Reel Meter looks at while you browse
+## What Reelity looks at while you browse
 
 On those four sites only, while a page is open, the extension checks:
 
@@ -23,9 +23,9 @@ If you turn blocking on, the extension can also replace a reel page with a block
 
 This is processed in your browser, in memory, and discarded immediately. Individual reels, their addresses and their ids are never saved.
 
-The counter and the block screen are drawn inside the page, so a site's own scripts could in principle notice that something was added to the page. Reel Meter sends them no information, and the extension does not make its version or your data available to page scripts.
+The counter and the block screen are drawn inside the page, so a site's own scripts could in principle notice that something was added to the page. Reelity sends them no information, and the extension does not make its version or your data available to page scripts.
 
-## What Reel Meter stores, on your device only
+## What Reelity stores, on your device only
 
 Using the browser's local extension storage, it keeps:
 
@@ -48,7 +48,7 @@ From the extension's dashboard (Privacy & data) you can export your counts (the 
 
 ## Children
 
-Reel Meter does not knowingly collect any information from anyone, including children.
+Reelity does not knowingly collect any information from anyone, including children.
 
 ## Changes
 
@@ -58,4 +58,4 @@ If this policy changes, the updated version will be published at this address wi
 
 [YOUR CONTACT EMAIL OR WEBSITE]
 
-_Reel Meter is not affiliated with, endorsed by, or sponsored by YouTube, Google, Instagram, Facebook, Meta or TikTok. Those names belong to their owners and are used only to say where the extension works._
+_Reelity is not affiliated with, endorsed by, or sponsored by YouTube, Google, Instagram, Facebook, Meta or TikTok. Those names belong to their owners and are used only to say where the extension works._
