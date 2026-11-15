@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Reelity</string>
+    <string name="welcome_tagline">Know your scroll. Stay in control.</string>
+    <string name="welcome_privacy">No account. No internet.</string>
+    <string name="welcome_status">Early preview: counting and blocking reels come in the next builds.</string>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="welcome_tagline">আপনার স্ক্রল জানুন। নিয়ন্ত্রণ রাখুন নিজের হাতে।</string>
+    <string name="welcome_privacy">অ্যাকাউন্ট লাগে না। ইন্টারনেট লাগে না।</string>
+    <string name="welcome_status">প্রাথমিক সংস্করণ: রিল গোনা আর ব্লক করার সুবিধা আসছে পরের সংস্করণগুলোতে।</string>
+</resources>

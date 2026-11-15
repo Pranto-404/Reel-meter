@@ -1,0 +1,12 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+captures/
+*.iml
+
+# Signing keys never go in the repository. The one exception is the shared debug key (not secret):
+# it lets each CI debug APK install over the previous one.
+*.jks
+*.keystore
+!app/debug.keystore
