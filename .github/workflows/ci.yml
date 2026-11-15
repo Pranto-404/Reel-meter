@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    working-directory: extension
+
 jobs:
   test:
     name: Unit tests and build
@@ -22,7 +26,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: reel-meter-packages
-          path: dist/*.zip
+          path: extension/dist/*.zip
 
   harness:
     name: Real-code browser harness
@@ -49,6 +53,9 @@ jobs:
   result:
     name: CI result
     if: always()
+    defaults:
+      run:
+        working-directory: .  # this job checks nothing out, so extension/ does not exist here
     needs: [test, harness]
     runs-on: ubuntu-latest
     steps:

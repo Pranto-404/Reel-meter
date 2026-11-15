@@ -25,7 +25,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Pranto-404/Reel-meter.git"
+    "url": "git+https://github.com/Pranto-404/Reel-meter.git",
+    "directory": "extension"
   },
   "homepage": "https://github.com/Pranto-404/Reel-meter",
   "bugs": {
