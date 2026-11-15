@@ -23,7 +23,7 @@ Count your Shorts, Reels and TikToks, and block them when you want your time bac
 | | Status | Where |
 |---|---|---|
 | **Browser extension** for Chrome, Edge, Brave and Firefox | Released | [`extension/`](extension/README.md) · [download](https://github.com/Pranto-404/Reel-meter/releases/latest) · [changelog](extension/CHANGELOG.md) |
-| **Android app** | Planned, see the roadmap | [`docs/android/`](docs/android/ROADMAP.md) · [architecture](docs/android/ARCHITECTURE.md) |
+| **Android app** | In development (M0 skeleton) | [`android/`](android/README.md) · [roadmap](docs/android/ROADMAP.md) · [architecture](docs/android/ARCHITECTURE.md) |
 
 Both follow the same privacy promise: no account, no analytics, no network access, nothing about what you watch is ever stored. Both will run the same counting and blocking rules, checked by shared tests.
 
@@ -31,7 +31,7 @@ Both follow the same privacy promise: no account, no analytics, no network acces
 
 ```
 extension/   the browser extension (Manifest V3, plain JavaScript, no dependencies)
-android/     the Android app (coming)
+android/     the Android app (Kotlin and Jetpack Compose, in development)
 shared/      test cases both products must pass (coming)
 docs/        extension/ and android/ design notes, HANDOFF.md (project history)
 .github/     CI, releases, issue and PR templates
