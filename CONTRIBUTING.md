@@ -24,7 +24,7 @@ See `extension/README.md` for the layout, `docs/extension/` and `docs/android/` 
 ## Releases
 Bump `version` in `manifest.json` and `package.json` together, add a `CHANGELOG.md` entry, commit, then tag:
 ```bash
-git tag v1.2.4
+git tag ext-v1.4.1
 git push origin main --tags
 ```
-The Release workflow builds the zips and attaches them to a GitHub release.
+The Extension release workflow builds the zips and attaches them to a GitHub release, with notes from the changelog.

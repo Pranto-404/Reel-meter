@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes to Reelity (called Reel Meter before 1.4.0). Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
-versions follow [Semantic Versioning](https://semver.org/).
+versions follow [Semantic Versioning](https://semver.org/). Releases up to 1.4.0 are tagged `vX.Y.Z`; later ones `ext-vX.Y.Z`.
 
 ## [1.4.0] - 2026-11-15
 ### Changed

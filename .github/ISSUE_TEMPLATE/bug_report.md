@@ -12,9 +12,11 @@ labels: bug
 1.
 2.
 
+**Product:** Extension / Android (delete one)
+
 **Environment**
-- Reelity version (popup footer):
-- Browser and version:
+- Reelity version (extension popup footer, or Android: Settings > About):
+- Browser and version, or phone model and Android version:
 - Site (YouTube / Instagram / TikTok / Facebook):
 - Restriction level (Less / Restricted / Full):
 
