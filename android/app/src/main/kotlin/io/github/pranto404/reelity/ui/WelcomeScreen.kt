@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.pranto404.reelity.DebugMenu
 import io.github.pranto404.reelity.R
 
 /** The M0 placeholder screen: brand, promise and what comes next. Scrolls, so it also fits at 200% font size. */
@@ -88,6 +89,7 @@ fun WelcomeScreen(modifier: Modifier = Modifier) {
                 color = colors.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
+            DebugMenu.WelcomeEntry()
         }
     }
 }

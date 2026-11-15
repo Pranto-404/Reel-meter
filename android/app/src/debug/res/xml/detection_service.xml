@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Narrow on purpose (ARCHITECTURE section 3): only the target apps, only window and scroll/tap events, view ids
+     reported, no gestures, no key events, not an accessibility tool. notificationTimeout batches the frequent
+     content-change events from video players, which keeps CPU use low.
+     flagIncludeNotImportantViews is for this spike only: reel containers are often layout views that are not
+     "important for accessibility", and the captures should show them so the real rules can be written. -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled|typeViewClicked"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/a11y_service_description"
+    android:notificationTimeout="250"
+    android:packageNames="com.google.android.youtube,com.instagram.android,com.instagram.lite,com.zhiliaoapp.musically,com.ss.android.ugc.trill,com.zhiliaoapp.musically.go,com.facebook.katana,com.facebook.lite" />
