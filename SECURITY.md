@@ -13,4 +13,4 @@ extension, any path that would send data off the device, or any way a web page c
 ## Known limits (not treated as vulnerabilities)
 
 Turning the extension off, DevTools, moving the system clock forward, reels inside iframes, and some page types
-the extension does not classify (Instagram `/p/` posts, Facebook `/watch`, TikTok `/explore`). See `README.md`.
+the extension does not classify (Instagram `/p/` posts, Facebook `/watch`, TikTok `/explore`). See `extension/README.md`.

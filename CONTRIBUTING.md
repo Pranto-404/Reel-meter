@@ -8,17 +8,18 @@ Thanks for helping. A few rules keep the privacy promise intact.
 - No build step and no dependencies: plain JavaScript, loaded unpacked straight from the repository.
 
 ## Run it
-1. Chrome or Edge: `chrome://extensions` or `edge://extensions`, turn on Developer mode, **Load unpacked**, pick this folder.
+1. Chrome or Edge: `chrome://extensions` or `edge://extensions`, turn on Developer mode, **Load unpacked**, pick the `extension` folder.
 2. After changing code, press the reload arrow on the extension card (each browser separately) and open a new tab.
 
 ## Checks
 ```bash
+cd extension
 npm test          # unit tests (about 2 seconds)
 npm run harness   # real content script + worker against a fake page in headless Chrome (about 90 seconds)
 npm run build     # store packages in dist/
 ```
 `src/core.js` holds all pure logic and is shared by the page script, the worker, the UI and the tests.
-See `README.md` for the layout and `docs/HANDOFF.md` for design notes.
+See `extension/README.md` for the layout, `docs/extension/` and `docs/android/` for design notes, and `docs/HANDOFF.md` for the project history.
 
 ## Releases
 Bump `version` in `manifest.json` and `package.json` together, add a `CHANGELOG.md` entry, commit, then tag:

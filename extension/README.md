@@ -9,7 +9,7 @@ Private by design: everything stays on your device.
 
 [![CI](https://github.com/Pranto-404/Reel-meter/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranto-404/Reel-meter/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/Pranto-404/Reel-meter?label=release)](https://github.com/Pranto-404/Reel-meter/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../LICENSE)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285f4)
 ![No network requests](https://img.shields.io/badge/network%20requests-none-2ea44f)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-2ea44f)
@@ -38,7 +38,7 @@ It never reads your screen, video titles, accounts or comments, and it has no wa
    Firefox: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on** and pick `manifest.json`.
 4. Refresh any YouTube, Instagram, TikTok or Facebook tab that was already open.
 
-**From source:** clone this repository and load the folder the same way. There is no build step.
+**From source:** clone this repository and load its `extension` folder the same way. There is no build step.
 
 ## Features
 
@@ -112,10 +112,10 @@ src/ui/           popup, dashboard, block settings panel
 test/             unit tests and static privacy checks (node:test)
 dev/              fake-chrome harnesses and preview tools
 store/            listing text, privacy policy, screenshots, promo image
-docs/             architecture, publishing guide, design notes
+../docs/extension/  architecture and publishing guide
 ```
 
-More: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/PUBLISHING.md](docs/PUBLISHING.md) · [CHANGELOG.md](CHANGELOG.md)
+More: [CONTRIBUTING.md](../CONTRIBUTING.md) · [docs/extension/ARCHITECTURE.md](../docs/extension/ARCHITECTURE.md) · [docs/extension/PUBLISHING.md](../docs/extension/PUBLISHING.md) · [CHANGELOG.md](CHANGELOG.md)
 
 ## Troubleshooting
 
@@ -143,6 +143,6 @@ More: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/ARCHITECTURE.md](docs/ARCHITEC
 
 ## Contributing, security and license
 
-[CONTRIBUTING.md](CONTRIBUTING.md) · report security problems privately via [SECURITY.md](SECURITY.md) · released under the [MIT License](LICENSE).
+[CONTRIBUTING.md](../CONTRIBUTING.md) · report security problems privately via [SECURITY.md](../SECURITY.md) · released under the [MIT License](../LICENSE).
 
 Reelity is not affiliated with, endorsed by, or sponsored by YouTube, Google, Instagram, Facebook, Meta or TikTok.
